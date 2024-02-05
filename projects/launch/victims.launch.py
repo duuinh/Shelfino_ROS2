@@ -234,4 +234,12 @@ def generate_launch_description():
 
     ld.add_action(create_map_eh)
 
+    victims_path_planner_node = Node (
+        package='project',
+        executable='victims_path_planner',
+        name='victims_path_planner',
+        output='screen',
+        parameters=[]
+    )
+    ld.add_action(victims_path_planner_node)
     return ld

@@ -8,6 +8,10 @@ endif()
 # find dependencies
 find_package(ament_cmake REQUIRED)
 
+set(NODES
+  victims_path_planner
+)
+
 install(DIRECTORY
   launch
   DESTINATION share/${PROJECT_NAME})
