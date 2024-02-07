@@ -7,13 +7,41 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(obstacles_msgs REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
+
+install(DIRECTORY
+  launch
+  DESTINATION share/${PROJECT_NAME})
 
 set(NODES
   victims_path_planner
 )
 
-install(DIRECTORY
-  launch
-  DESTINATION share/${PROJECT_NAME})
+# build nodes
+foreach(NODE ${NODES})
+  add_executable(${NODE} src/${NODE}.cpp)
+
+  target_include_directories(${NODE} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>)
+    
+  target_compile_features(${NODE} PUBLIC c_std_99 cxx_std_17)
+  
+  # target_link_libraries(${NODE} ${PROJECT_NAME}_lib)
+
+  ament_target_dependencies(
+    ${NODE}
+    "geometry_msgs"
+    "rclcpp"
+    "obstacles_msgs"
+    "rclcpp_lifecycle"
+  )
+
+  install(TARGETS ${NODE}
+    DESTINATION lib/${PROJECT_NAME})
+endforeach()
 
 ament_package()

@@ -217,7 +217,16 @@ def generate_launch_description():
         parameters=[map_env_params_file]
     )
 
+    victims_path_planner_node = Node (
+        package='projects',
+        executable='victims_path_planner',
+        name='victims_path_planner',
+        output='screen',
+        parameters=[{'shelfino_id': shelfino_id}]
+    )
+
     ld.add_action(map_pkg_launch)
+    ld.add_action(victims_path_planner_node)
     ld.add_action(sim_nodes)
     ld.add_action(create_map_node)
 
@@ -231,15 +240,5 @@ def generate_launch_description():
             on_exit=launch_nodes,
         )
     )
-
     ld.add_action(create_map_eh)
-
-    victims_path_planner_node = Node (
-        package='project',
-        executable='victims_path_planner',
-        name='victims_path_planner',
-        output='screen',
-        parameters=[]
-    )
-    ld.add_action(victims_path_planner_node)
     return ld
