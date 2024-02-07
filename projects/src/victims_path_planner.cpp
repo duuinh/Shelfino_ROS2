@@ -3,6 +3,7 @@
 #include "obstacles_msgs/msg/obstacle_array_msg.hpp"
 #include "geometry_msgs/msg/polygon.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
+#include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "edge_struct.hpp"
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
@@ -12,7 +13,7 @@ private:
     rclcpp::Subscription<obstacles_msgs::msg::ObstacleArrayMsg>::SharedPtr sub_obstacles_;
     rclcpp::Subscription<obstacles_msgs::msg::ObstacleArrayMsg>::SharedPtr sub_victims_;
     rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_gate_;
-    rclcpp::Subscription<geometry_msgs::msg::Pose>::SharedPtr sub_initial_pos_;
+    rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_initial_pos_;
 
     const rclcpp::QoS qos = 10;
 
@@ -35,7 +36,7 @@ private:
         for (const auto& point : msg->points)
         {
             RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f", point.x, point.y);
-            this->borders.push_back({point.x, point.y});
+            this->borders.push_back({point.x, point.y, 0.0});
         }
         this->borders_ready = true;
         this->activate_wrapper();
@@ -76,16 +77,16 @@ private:
         for (const auto& pose : msg->poses) {
           RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f", pose.position.x, pose.position.y);
           // obstacle gate {0.0, pose.position.x, pose.position.y, 1.0, 1.0, obstacle_type::BOX};
-          this->gate_pose ={pose.position.x, pose.position.y};
+          this->gate_pose ={pose.position.x, pose.position.y, 0.0};
         }
         this->gate_ready = true;
         this->activate_wrapper();
     }
 
-    void initial_pose_callback(const geometry_msgs::msg::Pose::SharedPtr msg)
+    void initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
     {
-        RCLCPP_INFO(get_logger(), "Received intial pose =>  x: %.2f, y: %.2f", msg->position.x, msg->position.y);
-        this->initial_pose ={msg->position.x, msg->position.y};
+        RCLCPP_INFO(get_logger(), "Received intial pose =>  x: %.2f, y: %.2f", msg->pose.pose.position.x, msg->pose.pose.position.y);
+        this->initial_pose ={msg->pose.pose.position.x, msg->pose.pose.position.y, 0.0};
         this->initial_pose_ready = true;
         this->activate_wrapper();
     }
@@ -103,7 +104,7 @@ private:
 
     void create_roadmap()
     {
-      if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready) {
+      if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready) {
         //TODO
 
         this->roadmap_ready = true;
@@ -155,7 +156,7 @@ public:
     std::string initial_pose_topic = "/shelfino#/initialpose";
     initial_pose_topic.replace(initial_pose_topic.find('#'), 1, std::to_string(this->get_parameter("shelfino_id").as_int()));
 
-    this->sub_initial_pos_ = this->create_subscription<geometry_msgs::msg::Pose>(
+    this->sub_initial_pos_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
         initial_pose_topic.c_str(), qos,
         std::bind(&VictimsPathPlannerNode::initial_pose_callback, this, std::placeholders::_1)
       );

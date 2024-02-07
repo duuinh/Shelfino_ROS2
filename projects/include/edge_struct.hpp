@@ -9,10 +9,9 @@ enum obstacle_type {
 };
 
 struct obstacle {
-  double radius;
   double x, y;
-  double dx, dy;
-  obstacle_type type;
+  double radius;
+  // obstacle_type type;
 };
 
 struct edge {
