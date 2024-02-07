@@ -116,7 +116,6 @@ public:
       rclcpp::NodeOptions().use_intra_process_comms(intra_process_comms)
     )
   {
-    this->get_parameter("shelfino_id").as_string();
     this->configure();
   } 
   // on configure
@@ -152,15 +151,15 @@ public:
     RCLCPP_INFO(get_logger(), "Subscribed to gate");
 
     // Create subscription to /shelfino#/initialpose
-    std::string shelfino_id = std::to_string(this->get_parameter("shelfino_id").as_int());
+    this->declare_parameter("shelfino_id", 0);
     std::string initial_pose_topic = "/shelfino#/initialpose";
-    initial_pose_topic.replace(initial_pose_topic.find('#'), 1, shelfino_id);
+    initial_pose_topic.replace(initial_pose_topic.find('#'), 1, std::to_string(this->get_parameter("shelfino_id").as_int()));
 
     this->sub_initial_pos_ = this->create_subscription<geometry_msgs::msg::Pose>(
         initial_pose_topic.c_str(), qos,
         std::bind(&VictimsPathPlannerNode::initial_pose_callback, this, std::placeholders::_1)
       );
-    RCLCPP_INFO(get_logger(), "Subscribed to gate");
+    RCLCPP_INFO(get_logger(), ("Subscribed to " + initial_pose_topic).c_str());
 
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
