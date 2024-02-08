@@ -200,7 +200,7 @@ void VictimsPathPlannerNode::create_roadmap() {
     
     // print log
     RCLCPP_INFO(this->get_logger(), "Created roadmap");
-    for (int i = 0; i < this->road_map.size(); i++) {
+    for (int i = 0; i < this->road_map[0].size(); i++) {
       std::string log = "  [ ";
       for (int j = 0; j < this->road_map[i].size(); j++) {
           log += std::to_string(road_map[i][j]) + " ";
