@@ -4,7 +4,7 @@
 #include "geometry_msgs/msg/polygon.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
-#include "edge_struct.hpp"
+#include "graph_node_struct.hpp"
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
@@ -31,6 +31,7 @@ private:
     graph_node initial_pose;
 
     std::vector<std::vector<double>> road_map;
+    std::vector<graph_node> optimal_path;
 
     void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
     {
@@ -107,6 +108,7 @@ private:
 
     void create_roadmap();
     double distance(graph_node& e1, graph_node& e2);
+    void solve_orienteering_problem();
 
 public:
   explicit VictimsPathPlannerNode(bool intra_process_comms = false)
@@ -168,7 +170,9 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
     //TODO: path planning
+    solve_orienteering_problem();
     //TODO: Nav2 FollowPath
+    // create FollowPath action client 
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -189,7 +193,7 @@ void VictimsPathPlannerNode::create_roadmap() {
 
     for (int i = 0; i < edges.size(); i++) {
       for (int j = 0; j < edges.size(); j++) {
-          //TODO: use dobins path?
+          //TODO: use dubins path distance?
           road_map[i][j] = distance(victims[i],victims[j]);
       }
     }
@@ -210,6 +214,10 @@ void VictimsPathPlannerNode::create_roadmap() {
 
 double VictimsPathPlannerNode::distance(graph_node& e1, graph_node& e2) {
   return std::sqrt(std::pow(e1.x-e2.x, 2) + std::pow(e1.y-e2.y, 2));
+}
+
+void VictimsPathPlannerNode::solve_orienteering_problem() {
+
 }
 
 int main(int argc, char * argv[])
