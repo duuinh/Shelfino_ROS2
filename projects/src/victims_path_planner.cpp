@@ -24,11 +24,13 @@ private:
     bool initial_pose_ready = false;
     bool roadmap_ready = false;
 
-    std::vector<edge> borders;
+    std::vector<graph_node> borders;
     std::vector<obstacle> obstacles;
-    std::vector<edge> victims;
-    edge gate_pose;
-    edge initial_pose;
+    std::vector<graph_node> victims;
+    graph_node gate_pose;
+    graph_node initial_pose;
+
+    std::vector<std::vector<double>> road_map;
 
     void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
     {
@@ -95,6 +97,7 @@ private:
     {
       this->create_roadmap();
       if (this->roadmap_ready) {
+        RCLCPP_INFO(this->get_logger(), "Roadmap ready");
         this->activate();
       }
       else {
@@ -102,14 +105,8 @@ private:
       }
     }
 
-    void create_roadmap()
-    {
-      if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready) {
-        //TODO
-
-        this->roadmap_ready = true;
-      }
-    }
+    void create_roadmap();
+    double distance(graph_node& e1, graph_node& e2);
 
 public:
   explicit VictimsPathPlannerNode(bool intra_process_comms = false)
@@ -183,6 +180,37 @@ public:
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 };
+
+void VictimsPathPlannerNode::create_roadmap() {
+  if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready) {
+    std::vector<graph_node> edges = this->victims;
+    edges.insert(edges.begin(), initial_pose);
+    edges.push_back(gate_pose);
+
+    for (int i = 0; i < edges.size(); i++) {
+      for (int j = 0; j < edges.size(); j++) {
+          //TODO: use dobins path?
+          road_map[i][j] = distance(victims[i],victims[j]);
+      }
+    }
+    
+    // print log
+    RCLCPP_INFO(this->get_logger(), "Created roadmap");
+    for (int i = 0; i < this->road_map.size(); i++) {
+      std::string log = "  [ ";
+      for (int j = 0; j < this->road_map[i].size(); j++) {
+          log += std::to_string(road_map[i][j]) + " ";
+      }
+      log += "]";
+      RCLCPP_INFO(get_logger(), log.c_str() );
+    }
+    this->roadmap_ready = true;
+  }
+}
+
+double VictimsPathPlannerNode::distance(graph_node& e1, graph_node& e2) {
+  return std::sqrt(std::pow(e1.x-e2.x, 2) + std::pow(e1.y-e2.y, 2));
+}
 
 int main(int argc, char * argv[])
 {
