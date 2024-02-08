@@ -1,10 +1,14 @@
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "obstacles_msgs/msg/obstacle_array_msg.hpp"
 #include "geometry_msgs/msg/polygon.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "graph_node_struct.hpp"
+#include "nav_msgs/msg/path.hpp"
+#include "nav2_msgs/action/follow_path.hpp"
+
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
@@ -171,8 +175,29 @@ public:
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
     //TODO: path planning
     solve_orienteering_problem();
+
     //TODO: Nav2 FollowPath
     // create FollowPath action client 
+    using FollowPath = nav2_msgs::action::FollowPath;
+    rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
+
+    if (!client_ptr_->wait_for_action_server()){
+      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Action server not available after waiting");
+      rclcpp::shutdown();
+    }
+
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+    path_publisher_ = node->create_publisher<nav_msgs::msg::Path>("plan", 10);
+    path_publisher_->publish(path_msg);
+    sleep(0.4);
+    path_publisher_->publish(path_msg);
+
+    auto goal_msg = FollowPath::Goal();
+    goal_msg.path = path_msg;
+    goal_msg.controller_id = "FollowPath";
+    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending goal");
+    client_ptr_->async_send_goal(goal_msg);
+
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
