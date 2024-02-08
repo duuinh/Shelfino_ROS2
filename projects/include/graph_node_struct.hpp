@@ -14,7 +14,7 @@ struct obstacle {
   // obstacle_type type;
 };
 
-struct edge {
+struct graph_node {
   double x, y;
   double weight;
 };
