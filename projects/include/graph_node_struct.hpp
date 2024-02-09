@@ -16,5 +16,5 @@ struct obstacle {
 
 struct graph_node {
   double x, y;
-  double weight = 0.0;
+  double reward = 0.0;
 };
