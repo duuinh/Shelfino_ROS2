@@ -178,25 +178,25 @@ public:
 
     //TODO: Nav2 FollowPath
     // create FollowPath action client 
-    using FollowPath = nav2_msgs::action::FollowPath;
-    rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
+    // using FollowPath = nav2_msgs::action::FollowPath;
+    // rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
 
-    if (!client_ptr_->wait_for_action_server()){
-      RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Action server not available after waiting");
-      rclcpp::shutdown();
-    }
+    // if (!client_ptr_->wait_for_action_server()){
+    //   RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Action server not available after waiting");
+    //   rclcpp::shutdown();
+    // }
 
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
-    path_publisher_ = node->create_publisher<nav_msgs::msg::Path>("plan", 10);
-    path_publisher_->publish(path_msg);
-    sleep(0.4);
-    path_publisher_->publish(path_msg);
+    // rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+    // path_publisher_ = node->create_publisher<nav_msgs::msg::Path>("plan", 10);
+    // path_publisher_->publish(path_msg);
+    // sleep(0.4);
+    // path_publisher_->publish(path_msg);
 
-    auto goal_msg = FollowPath::Goal();
-    goal_msg.path = path_msg;
-    goal_msg.controller_id = "FollowPath";
-    RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending goal");
-    client_ptr_->async_send_goal(goal_msg);
+    // auto goal_msg = FollowPath::Goal();
+    // goal_msg.path = path_msg;
+    // goal_msg.controller_id = "FollowPath";
+    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Sending goal");
+    // client_ptr_->async_send_goal(goal_msg);
 
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
