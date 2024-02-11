@@ -68,8 +68,8 @@ void ILP_Solver::prepare_data_simplex() {
         }
 
         // Constraints for orienteering problem:
-        // A - right hand side
-        // b - left hand side
+        // A - left hand side
+        // b - right hand side
 
         std::vector<double> a_row(n_nodes_* n_nodes_);
         int end_idx = n_nodes_ - 1;
