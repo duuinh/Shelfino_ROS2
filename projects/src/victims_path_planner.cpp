@@ -19,7 +19,18 @@ private:
     rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_gate_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_initial_pos_;
 
-    const rclcpp::QoS qos = 10;
+    const rmw_qos_profile_t rmw_qos_profile_custom =
+    {
+      RMW_QOS_POLICY_HISTORY_KEEP_LAST,
+      10,
+      RMW_QOS_POLICY_RELIABILITY_RELIABLE,
+      RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
+      RMW_QOS_DEADLINE_DEFAULT,
+      RMW_QOS_LIFESPAN_DEFAULT,
+      RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
+      RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
+      false
+    };
 
     bool borders_ready = false;
     bool obstacles_ready = false;
@@ -36,6 +47,10 @@ private:
 
     std::vector<std::vector<double>> road_map;
     std::vector<graph_node> optimal_path;
+
+    void create_roadmap();
+    double distance(graph_node& e1, graph_node& e2);
+    void solve_orienteering_problem();
 
     void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
     {
@@ -110,10 +125,6 @@ private:
       }
     }
 
-    void create_roadmap();
-    double distance(graph_node& e1, graph_node& e2);
-    void solve_orienteering_problem();
-
 public:
   explicit VictimsPathPlannerNode(bool intra_process_comms = false)
   : rclcpp_lifecycle::LifecycleNode("victims_path_planner", 
@@ -126,6 +137,7 @@ public:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn 
   on_configure(const rclcpp_lifecycle::State& state)
   {
+    auto qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom);
     // Create subscription to /map_borders
     this->sub_borders_ = this->create_subscription<geometry_msgs::msg::Polygon>(
       "/map_borders", qos, 
@@ -154,9 +166,9 @@ public:
       );
     RCLCPP_INFO(get_logger(), "Subscribed to gate");
 
-    // Create subscription to /shelfino#/initialpose
+    // Create subscription to /shelfino#/amcl_pose
     this->declare_parameter("shelfino_id", 0);
-    std::string initial_pose_topic = "/shelfino#/initialpose";
+    std::string initial_pose_topic = "/shelfino#/amcl_pose";
     initial_pose_topic.replace(initial_pose_topic.find('#'), 1, std::to_string(this->get_parameter("shelfino_id").as_int()));
 
     this->sub_initial_pos_ = this->create_subscription<geometry_msgs::msg::PoseWithCovarianceStamped>(
@@ -212,22 +224,25 @@ public:
 
 void VictimsPathPlannerNode::create_roadmap() {
   if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready) {
-    std::vector<graph_node> edges = this->victims;
-    edges.insert(edges.begin(), initial_pose);
-    edges.push_back(gate_pose);
-
-    for (int i = 0; i < edges.size(); i++) {
-      for (int j = 0; j < edges.size(); j++) {
-          //TODO: use dubins path distance?
-          road_map[i][j] = distance(victims[i],victims[j]);
+    std::vector<graph_node> nodes = this->victims;
+    nodes.insert(nodes.begin(), initial_pose);
+    nodes.push_back(gate_pose);
+    road_map.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
+    
+    for (size_t i = 0; i < nodes.size(); ++i) {
+      for (size_t j = 0; j < nodes.size(); ++j) {
+          if (i != j) {
+          //TODO: use A star shortest path
+            road_map[i][j] = distance(victims[i],victims[j]);
+          }
       }
     }
     
     // print log
     RCLCPP_INFO(this->get_logger(), "Created roadmap");
-    for (int i = 0; i < this->road_map[0].size(); i++) {
+    for (size_t i = 0; i < nodes.size(); ++i) {
       std::string log = "  [ ";
-      for (int j = 0; j < this->road_map[i].size(); j++) {
+      for (size_t j = 0; j < nodes.size(); ++j) {
           log += std::to_string(road_map[i][j]) + " ";
       }
       log += "]";
