@@ -10,11 +10,16 @@ std::vector<double> flatten(const std::vector<std::vector<double>>& input) {
     return flattened;
 }
 std::vector<std::vector<double>> reshape(const std::vector<double>& input, int rows, int cols) {
-    std::vector<std::vector<double>> matrix;
-    matrix.resize(rows, std::vector<double>(cols));
-    matrix.assign(input.begin(), input.end());
+    std::vector<std::vector<double>> matrix(rows, std::vector<double>(cols));
+    int index = 0;
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            matrix[i][j] = input[index++];
+        }
+    }
     return matrix;
 }
+
 bool is_integer(const double& value) {
     double intpart;
     return std::modf(value, &intpart) == 0.0; // fractpart == 0.0
