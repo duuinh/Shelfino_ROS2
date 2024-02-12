@@ -54,7 +54,7 @@ std::vector <int> ILP_Solver::find_optimal_path_BnB() {
     return optimal_path;
 }
 
-void ILP_Solver::prepare_data_simplex() {
+void ILP_Solver::initialize_simplex_tableau() {
         // cost function: maximize rewards gained
         // create c vector with size of n^2 
         c_vec_.resize(n_nodes_* n_nodes_);
@@ -185,7 +185,8 @@ void ILP_Solver::add_slack_variables_simplex() {
     // add zero vector to c
     std::vector<double> zero_vec(a_mat_[0].size()-c_vec_.size(), 0);
     c_vec_.insert(c_vec_.end(), zero_vec.begin(), zero_vec.end());
-    // add big M
+    
+    // add big M to the constraints identified as > or =
     if (use_big_M_) {
         // for start node constraint
         int idx = (n_nodes_ * n_nodes_ ) + (n_nodes_ * n_nodes_) ;
@@ -281,5 +282,6 @@ ILP_Solver::ILP_Solver(const std::vector<double>& rewards, std::vector<std::vect
     rewards_ = rewards;
     dist_matrix_ = dist_matrix;
     n_nodes_ = rewards.size();
-    prepare_data_simplex();
+    
+    initialize_simplex_tableau();
 }

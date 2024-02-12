@@ -23,10 +23,11 @@ private:
     std::vector<double> c_vec_;                         // coeff. vector of cost function
 
     bool use_big_M_ = false;                      
-    int M_ = 10000;                                      // big M value
+    int M_ = -9999;                                     // big M value (-M for Max. problem)
 
-    void prepare_data_simplex();
-    void add_slack_variables_simplex();
+    void initialize_simplex_tableau();
+    void add_slack_variables_simplex();                 // to make the initial feasible solution
+
     void combinations_recursive(std::vector<int>& options, int k, std::vector<int>& combination, int start, std::vector<std::vector<int>>& result);
     std::vector<std::vector<int>> generate_combinations();
     bool is_integer_solution(const std::vector<double>& solution);
