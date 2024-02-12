@@ -20,6 +20,18 @@ set(NODES
   victims_path_planner
 )
 
+add_library(${PROJECT_NAME}_lib SHARED
+  src/simplex.cpp
+  src/ilp_solver.cpp
+  src/math_utils.cpp
+)
+
+target_include_directories(${PROJECT_NAME}_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+target_compile_features(${PROJECT_NAME}_lib PUBLIC c_std_99 cxx_std_17)
+
 # build nodes
 foreach(NODE ${NODES})
   add_executable(${NODE} src/${NODE}.cpp)
@@ -30,7 +42,7 @@ foreach(NODE ${NODES})
     
   target_compile_features(${NODE} PUBLIC c_std_99 cxx_std_17)
   
-  # target_link_libraries(${NODE} ${PROJECT_NAME}_lib)
+  target_link_libraries(${NODE} ${PROJECT_NAME}_lib)
 
   ament_target_dependencies(
     ${NODE}
