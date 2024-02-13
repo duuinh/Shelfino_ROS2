@@ -5,7 +5,10 @@
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "graph_node_struct.hpp"
+#include "ilp_solver.hpp"
 
+#define VELOCITY      0.2        // desired maximum linear velocity (m/s) to use
+#define MAX_TIME      600        // maximum time budget [second]
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
 private:
@@ -44,9 +47,8 @@ private:
     std::vector<std::vector<double>> road_map;
     std::vector<graph_node> optimal_path;
 
-    void create_roadmap();
+    void construct_roadmap();
     double distance(graph_node& e1, graph_node& e2);
-    void solve_orienteering_problem();
 
     void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
     {
@@ -111,7 +113,7 @@ private:
 
     void activate_wrapper()
     {
-      this->create_roadmap();
+      this->construct_roadmap();
       if (this->roadmap_ready) {
         RCLCPP_INFO(this->get_logger(), "Roadmap ready");
         this->activate();
@@ -181,10 +183,25 @@ public:
   on_activate(const rclcpp_lifecycle::State& state)
   {
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
-    //TODO: path planning
-    solve_orienteering_problem();
-    //TODO: Nav2 FollowPath
-    // create FollowPath action client 
+    double dist_max = VELOCITY * MAX_TIME;
+    std::vector<double> rewards;
+
+    // initilize rawards vector
+    rewards.push_back(0);   // start node
+    for (size_t i = 0; i < victims.size(); i++) {
+      rewards.push_back(victims[i].reward);
+    }
+    rewards.push_back(0);   // end node
+
+    RCLCPP_INFO(get_logger(), "Starting mission planning [time: %f]", get_clock()->now().seconds());
+    ILP_Solver solver = ILP_Solver(rewards, road_map, dist_max);
+    std::vector<int> path = solver.find_optimal_path_BnB();
+    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f]", get_clock()->now().seconds());
+    for (int j = 0; j < path.size(); j++) {
+      std::cout << path[j] << std::endl;
+
+    }
+    // TODO: motion_planning();
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -197,8 +214,11 @@ public:
   }
 };
 
-void VictimsPathPlannerNode::create_roadmap() {
+void VictimsPathPlannerNode::construct_roadmap() {
   if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready) {
+
+    RCLCPP_INFO(get_logger(), "Starting roadmap construction [time: %f]", get_clock()->now().seconds());
+
     std::vector<graph_node> nodes = this->victims;
     nodes.insert(nodes.begin(), initial_pose);
     nodes.push_back(gate_pose);
@@ -212,7 +232,9 @@ void VictimsPathPlannerNode::create_roadmap() {
           }
       }
     }
-    
+
+    RCLCPP_INFO(get_logger(), "Finished roadmap construction [time: %f]", get_clock()->now().seconds());
+
     // print log
     RCLCPP_INFO(this->get_logger(), "Created roadmap");
     for (size_t i = 0; i < nodes.size(); ++i) {
@@ -229,10 +251,6 @@ void VictimsPathPlannerNode::create_roadmap() {
 
 double VictimsPathPlannerNode::distance(graph_node& e1, graph_node& e2) {
   return std::sqrt(std::pow(e1.x-e2.x, 2) + std::pow(e1.y-e2.y, 2));
-}
-
-void VictimsPathPlannerNode::solve_orienteering_problem() {
-
 }
 
 int main(int argc, char * argv[])
