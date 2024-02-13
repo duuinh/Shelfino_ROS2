@@ -11,6 +11,12 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(obstacles_msgs REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(rclcpp_action REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(nav2_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+
 
 install(DIRECTORY
   launch
@@ -18,6 +24,7 @@ install(DIRECTORY
 
 set(NODES
   victims_path_planner
+  FollowPath_action_client
 )
 
 add_library(${PROJECT_NAME}_lib SHARED
@@ -50,6 +57,11 @@ foreach(NODE ${NODES})
     "rclcpp"
     "obstacles_msgs"
     "rclcpp_lifecycle"
+    "rclcpp_action"
+    "rclcpp_components"
+    "nav_msgs"
+    "nav2_msgs"
+    "std_msgs"
   )
 
   install(TARGETS ${NODE}

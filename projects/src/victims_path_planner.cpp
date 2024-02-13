@@ -1,4 +1,5 @@
 #include "rclcpp/rclcpp.hpp"
+#include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
 #include "obstacles_msgs/msg/obstacle_array_msg.hpp"
 #include "geometry_msgs/msg/polygon.hpp"
