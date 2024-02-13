@@ -8,9 +8,6 @@
 #include <iostream>
 #include <sstream>
 
-#define ROBOT_CIRCLE 0.35 //m radius of robot occupation
-#define ROBOT_VELOCITY 1.0  //m/s velocity of robot
-
 using namespace std;
 
 class Seed

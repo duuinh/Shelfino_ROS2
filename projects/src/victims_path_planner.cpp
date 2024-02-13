@@ -7,9 +7,8 @@
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "graph_node_struct.hpp"
 #include "ilp_solver.hpp"
+#include "common_defines.h"
 
-#define VELOCITY      0.2        // desired maximum linear velocity (m/s) to use
-#define MAX_TIME      600        // maximum time budget [second]
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
 private:
@@ -184,7 +183,7 @@ public:
   on_activate(const rclcpp_lifecycle::State& state)
   {
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
-    double dist_max = VELOCITY * MAX_TIME;
+    double dist_max = ROBOT_VELOCITY * MAX_TIME;
     std::vector<double> rewards;
 
     // initilize rawards vector
