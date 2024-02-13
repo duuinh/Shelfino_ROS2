@@ -8,7 +8,7 @@
 #include <cmath>
 #include <cstdlib>
 //#include <utils/utils.h>
-#include <shapes/shapes.hpp>
+#include "shapes.hpp"
 #include <map>
 
 enum CurveType {

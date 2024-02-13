@@ -4,7 +4,7 @@ using namespace std;
 // Returns a vector containing the approximation of a PathCurve using n points.
 // If a straight arc is found inside the curve, its points will compose 10% of the total points.
 // Points that compose a curve arc will be proportional to the length of the arc inside the curve.
-std::vector<PathPoint> PathCurve::toPoints(int n) {
+std::vector<PathPoint> PathCurve::toPoints(int n) const {
     std::vector<PathPoint> points;
     const double straightCoeff = 0.1;
     double curvesLength = getLength();
@@ -24,7 +24,7 @@ std::vector<PathPoint> PathCurve::toPoints(int n) {
     return points;
 }
 
-std::vector<PathPoint> PathCurve::toPointsUniform(double spacing) {
+std::vector<PathPoint> PathCurve::toPointsUniform(double spacing) const{
     std::vector<PathPoint> points;
     if (arcs.empty()) {
         return points;
@@ -39,13 +39,13 @@ std::vector<PathPoint> PathCurve::toPointsUniform(double spacing) {
     return points;
 }
 
-std::vector<PathPoint> PathArc::toPointsUniform(double spacing) {
+std::vector<PathPoint> PathArc::toPointsUniform(double spacing) const{
     int pointsCount = round(this->arcLength / spacing) + 2;
     return toPoints(pointsCount);
 }
 
 // Returns a vector of n points that approximates the arc.
-std::vector<PathPoint> PathArc::toPoints(int n) {
+std::vector<PathPoint> PathArc::toPoints(int n) const{
     std::vector<PathPoint> points;
     if (n < 2) {
         return points;
@@ -60,7 +60,7 @@ std::vector<PathPoint> PathArc::toPoints(int n) {
     return points;
 }
 
-PathPoint PathArc::getDestination() {
+PathPoint PathArc::getDestination() const{
     double x = this->startPoint.xPos + this->arcLength * sinc(this->curvature * this->arcLength / 2.0) * cos(this->startPoint.orientation + this->curvature * this->arcLength / 2);
     double y = this->startPoint.yPos + this->arcLength * sinc(this->curvature * this->arcLength / 2.0) * sin(this->startPoint.orientation + this->curvature * this->arcLength / 2);
     double orientation = mod2pi(this->startPoint.orientation + this->curvature * this->arcLength);
@@ -310,7 +310,7 @@ bool checkPathArcIntersection(PathArc arc, Segment2D segment) {
         Point2D p3(endPoint.xPos, endPoint.yPos);
 
         // Assuming getCircle function exists to find the circle from 3 points
-        Circle circle = getCircle(p1, p2, p3);
+        Circle circle = get_circle(p1, p2, p3);
 
         // Determine start and end points for intersection check based on arc curvature direction
         Point2D arcStart = (arc.curvature < 0) ? p3 : p1;
@@ -333,7 +333,7 @@ bool checkIntersection(PathCurve curve, Polygon polygon, int pointsCount) {
 
     // Check if any segment of the approximated curve intersects with any polygon side
     for (const auto& curveSegment : segments) {
-        for (const auto& polygonSide : polygon.getSides()) { // Assuming Polygon::getSides() returns a vector of Segment2D
+        for (const auto& polygonSide : polygon.get_sides()) { // Assuming Polygon::getSides() returns a vector of Segment2D
             if (intersect(curveSegment, polygonSide)) { // Assuming an appropriate intersect function for Segment2D types
                 return true;
             }
@@ -352,7 +352,7 @@ std::string operator + (std::string s, const PathArc& arc) {
 
 std::string operator + (std::string s, const PathCurve& curve) {
     for (const auto& arc : curve.arcs) {
-        s += arc; // Assuming PathArc has an operator+ overload to append string representation
+        s = s + arc; // Assuming PathArc has an operator+ overload to append string representation
     }
     return s;
 }

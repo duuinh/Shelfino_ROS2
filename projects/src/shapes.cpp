@@ -1,5 +1,6 @@
-#include "shapes/shapes.hpp"
-#include <dubins/dubins.hpp>
+#include "shapes.hpp"
+#include "dubins.hpp"
+using namespace std;
 
 bool is_bounded(double val, double min, double max){
     return val>=min && val<=max;
