@@ -43,9 +43,4 @@ class Logger
         Logger(type t, string message);
         Logger(type t, stringstream& message);
 };
-
-double mod2pi(double angle);
-double modpi(double angle);
-double sinc(double t);
-
 #endif
