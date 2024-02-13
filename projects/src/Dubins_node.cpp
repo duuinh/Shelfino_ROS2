@@ -60,8 +60,15 @@ private:
         // Convert Dubins curves to a sequence of points
         auto dubins_path = generate_path(dubins_curves, header);
 
-        // Publish the Dubins path
-        dubins_path_publisher_->publish(dubins_path);
+        // Split the Dubins path into smaller sections
+        auto sections = split_path(dubins_curves, 5.0); 
+
+        // Publish each section
+        for (auto section : sections)
+        {
+            dubins_path_publisher_->publish(section);
+        }
+
     }
 };
 
