@@ -232,6 +232,14 @@ def generate_launch_description():
         parameters=[{'shelfino_id': shelfino_id}, {'use_sim_time': use_sim_time}]
     )
 
+    DubinsPath_node = Node (
+        package='projects',
+        executable='Dubins_node',
+        name='DubinsNode',
+        output='screen',
+        parameters=[{'shelfino_id': shelfino_id}, {'use_sim_time': use_sim_time}]
+    )
+
     # PathPlanner_action_client_node = Node (
     #     package='projects',
     #     executable='planner_client',
@@ -252,6 +260,7 @@ def generate_launch_description():
     ld.add_action(sim_nodes)
     ld.add_action(create_map_node)
     ld.add_action(FollowPath_action_client_node)
+    ld.add_action(DubinsPath_node)
     #ld.add_action(PathPlanner_action_client_node)
     # ld.add_action(sample_path_publisher_node)
 

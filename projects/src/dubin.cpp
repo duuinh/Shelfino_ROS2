@@ -282,12 +282,23 @@ std::vector<PathCurve> generatePathCurves(PathPoint startPoint, PathPoint endPoi
     return curves;
 }
 
-PathCurve findShortestPathCurve(PathPoint startPoint, PathPoint endPoint, const double curvature) {
+// PathCurve findShortestPathCurve(PathPoint startPoint, PathPoint endPoint, const double curvature) {
+//     auto curves = generatePathCurves(startPoint, endPoint, curvature);
+//     if (curves.empty()) {
+//         return PathCurve(); // Return an empty PathCurve if no path is found
+//     }
+//     return curves.at(0); // Assuming curves are sorted, return the shortest
+// }
+
+// find the shortest path curve that does not intersect with the obstacle
+PathCurve findShortestPathCurve(PathPoint startPoint, PathPoint endPoint, const double curvature, const Polygon& obstaclePolygon) {
     auto curves = generatePathCurves(startPoint, endPoint, curvature);
-    if (curves.empty()) {
-        return PathCurve(); // Return an empty PathCurve if no path is found
+    for (const auto& curve : curves) {
+        if (!checkIntersection(curve, obstaclePolygon, 10)) {
+            return curve; // Return the first curve that doesn't intersect with the obstacle
+        }
     }
-    return curves.at(0); // Assuming curves are sorted, return the shortest
+    return PathCurve(); // Return an empty curve if no path without collision is found
 }
 
 bool checkPathArcIntersection(PathArc arc, Segment2D segment) {

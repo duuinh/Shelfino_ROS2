@@ -25,6 +25,7 @@ install(DIRECTORY
 set(NODES
   victims_path_planner
   FollowPath_action_client
+  Dubins_node
 )
 
 # build nodes
