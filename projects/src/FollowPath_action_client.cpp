@@ -5,6 +5,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "std_msgs/msg/header.hpp"
+#include "utils.h"
 
 using namespace std::chrono_literals;
 
@@ -51,17 +52,15 @@ nav_msgs::msg::Path generate_path(std::vector<PathCurve> curves, std_msgs::msg::
 }
 
 // Function to split a path into smaller sections of a specified distance
-std::vector<nav_msgs::msg::Path> split_path(std::vector<PathCurve> curves,
-                                            std_msgs::msg::Header header, double section_length) {
-    nav_msgs::msg::Path path = generate_path(curves, header);  // need to add the path, header
+std::vector<nav_msgs::msg::Path> split_path(const nav_msgs::msg::Path& dubins_path, double section_length) {
     std::vector<nav_msgs::msg::Path> sections;
     nav_msgs::msg::Path current_section;
     double accumulated_distance = 0.0;
 
-    for (const auto& pose : path.poses) {
+    for (const auto& pose : dubins_path.poses) {
         // If the current section is empty, add the pose
         if (current_section.poses.empty()) {
-            current_section.header = path.header;
+            current_section.header = dubins_path.header;
             current_section.header.frame_id = "map";
             current_section.poses.push_back(pose);
         } else {
@@ -76,7 +75,7 @@ std::vector<nav_msgs::msg::Path> split_path(std::vector<PathCurve> curves,
             if (accumulated_distance + distance > section_length) {
                 sections.push_back(current_section);
                 current_section = nav_msgs::msg::Path();
-                current_section.header = path.header;
+                current_section.header = dubins_path.header;
                 current_section.header.frame_id = "map";
                 current_section.poses.push_back(pose);
                 accumulated_distance = 0.0;
@@ -120,8 +119,8 @@ class FollowPathActionClient : public rclcpp::Node {
         path_publisher_ = this->create_publisher<nav_msgs::msg::Path>(publish_path_topic, 10);
 
         // Subscribe to the /victims_path_planner topic
-        plan_subscription_ = this->create_subscription<nav_msgs::msg::Path>("victims_path_planner",
-                 10, std::bind(&FollowPathActionClient::plan_callback, this, std::placeholders::_1));
+        plan_subscription_ = this->create_subscription<nav_msgs::msg::Path>("victims_rescue_path",
+                 rclcpp::QoS(rclcpp::KeepLast(10)), std::bind(&FollowPathActionClient::plan_callback, this, std::placeholders::_1));
     }
 
    private:
@@ -196,16 +195,41 @@ class FollowPathActionClient : public rclcpp::Node {
         }
     }
 
-    void plan_callback() {
+    void plan_callback(nav_msgs::msg::Path::SharedPtr path_msg) {
         std_msgs::msg::Header header;
         header.stamp = this->now();
         std::vector<PathCurve> curves;
         double section_length;
-        
-        // TO DO: call the split path function to get the sections
+        double curvature = 5.0; // Set your curvature value here
 
-        std::vector<nav_msgs::msg::Path> path_msg_list = split_path(curves, header, section_length);
-        this->publish_path(path_msg_list);
+        std::vector<PathCurve> dubins_curves;
+
+        // Iterate over pairs of consecutive points from the received path
+        for (size_t i = 0; i < path_msg->poses.size() - 1; ++i)
+        {
+            // Get start and end points for the Dubins path calculation
+            const auto &start_pose = path_msg->poses[i].pose;
+            const auto &end_pose = path_msg->poses[i + 1].pose;
+
+            PathPoint start_point(start_pose.position.x, start_pose.position.y, start_pose.position.z);
+            PathPoint end_point(end_pose.position.x, end_pose.position.y, end_pose.position.z);
+
+            // Calculate Dubins path between the consecutive points
+            auto dubins_curve = findShortestPathCurve(start_point, end_point, curvature);
+
+            // Append Dubins curve to the vector
+            dubins_curves.push_back(dubins_curve);
+        }
+
+         auto header = std_msgs::msg::Header();
+
+        // Convert Dubins curves to a sequence of points
+        auto dubins_path = generate_path(dubins_curves, header);
+
+        // Split the Dubins path into smaller sections
+        auto sections = split_path(dubins_path, 5.0); 
+
+        this->publish_path(sections);
     }
 
 private:
