@@ -111,4 +111,13 @@ bool checkIntersection(PathCurve path, Polygon polygon);
 bool checkIntersection(PathCurve path, Segment2D segment);
 bool checkIntersection(PathCurve path, Polygon polygon, int precision);
 bool checkIntersectionWithSides(PathCurve path, Polygon polygon);
+
+PathPrimitive calculatePathPrimitive(CurveType curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax);
+PathCurve findShortestPathCurve(PathPoint startPoint, PathPoint endPoint, const double curvature);
+bool checkPathArcIntersection(PathArc arc, Segment2D segment);
+void sortPathCurvesByLength(std::vector<PathCurve>& curves);
+
+std::string operator+(std::string s, const PathPoint& point);
+std::string operator+(std::string s, const PathArc& arc);
+std::string operator+(std::string s, const PathCurve& curve);
 #endif
