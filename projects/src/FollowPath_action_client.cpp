@@ -8,6 +8,8 @@
 #include "utils.h"
 
 using namespace std::chrono_literals;
+using FollowPath = nav2_msgs::action::FollowPath;
+using GoalHandleFollowPath = rclcpp_action::ClientGoalHandle<FollowPath>;
 
 // Function to convert Euler angles to quaternion
 geometry_msgs::msg::Quaternion convert_to_quaternion(double pitch, double roll, double yaw) {
@@ -95,44 +97,22 @@ std::vector<nav_msgs::msg::Path> split_path(const nav_msgs::msg::Path& dubins_pa
 }
 
 class FollowPathActionClient : public rclcpp::Node {
-   public:
-    using FollowPath = nav2_msgs::action::FollowPath;
-    using GoalHandleFollowPath = rclcpp_action::ClientGoalHandle<FollowPath>;
-
-    explicit FollowPathActionClient(const rclcpp::NodeOptions& options = rclcpp::NodeOptions())
-        : Node("FollowPath_action_client", options) {
-
-        // Get shelfino ID parameter
-        this->declare_parameter("shelfino_id", 0);
-
-        std::string action_server_name = "/shelfino#/follow_path";
-        action_server_name.replace(action_server_name.find('#'), 1,
-                                   std::to_string(this->get_parameter("shelfino_id").as_int()));
-
-        std::string publish_path_topic = "/shelfino#/plan1";
-        publish_path_topic.replace(publish_path_topic.find('#'), 1,
-                                   std::to_string(this->get_parameter("shelfino_id").as_int()));
-
-        // create action client
-        this->client_ptr_ = rclcpp_action::create_client<FollowPath>(this, action_server_name);
-        // Create publisher for the path
-        path_publisher_ = this->create_publisher<nav_msgs::msg::Path>(publish_path_topic, 10);
-
-        // Subscribe to the /victims_path_planner topic
-        plan_subscription_ = this->create_subscription<nav_msgs::msg::Path>("victims_rescue_path",
-                 rclcpp::QoS(rclcpp::KeepLast(10)), std::bind(&FollowPathActionClient::plan_callback, this, std::placeholders::_1));
-    }
 
    private:
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
+    rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr plan_subscription_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
 
     void send_goal(nav_msgs::msg::Path path) {
-        this->timer_->cancel();
+        RCLCPP_INFO(get_logger(), "xxx");
 
         if (!this->client_ptr_->wait_for_action_server()) {
             RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
             rclcpp::shutdown();
             return;
         }
+        RCLCPP_INFO(get_logger(), "yyy");
 
         auto goal_msg = FollowPath::Goal();
         goal_msg.path = path;
@@ -140,6 +120,7 @@ class FollowPathActionClient : public rclcpp::Node {
         goal_msg.path.header.frame_id = "map";
         goal_msg.controller_id = "FollowPath";
 
+        RCLCPP_INFO(get_logger(), "zzz");
 
         auto send_goal_options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
         send_goal_options.goal_response_callback =
@@ -190,16 +171,15 @@ class FollowPathActionClient : public rclcpp::Node {
 
     void publish_path(std::vector<nav_msgs::msg::Path> path_msg_list) {
         for (const auto& path_msg : path_msg_list) {
+            this->path_publisher_->publish(path_msg);
             this->send_goal(path_msg);
-            path_publisher_->publish(path_msg);
         }
     }
 
     void plan_callback(nav_msgs::msg::Path::SharedPtr path_msg) {
         std_msgs::msg::Header header;
         header.stamp = this->now();
-        std::vector<PathCurve> curves;
-        double section_length;
+        double section_length = 5.0;
         double curvature = 5.0; // Set your curvature value here
 
         std::vector<PathCurve> dubins_curves;
@@ -216,7 +196,6 @@ class FollowPathActionClient : public rclcpp::Node {
 
             // Calculate Dubins path between the consecutive points
             auto dubins_curve = findShortestPathCurve(start_point, end_point, curvature);
-
             // Append Dubins curve to the vector
             dubins_curves.push_back(dubins_curve);
         }
@@ -225,16 +204,34 @@ class FollowPathActionClient : public rclcpp::Node {
         auto dubins_path = generate_path(dubins_curves, header);
 
         // Split the Dubins path into smaller sections
-        auto sections = split_path(dubins_path, 5.0); 
+        auto sections = split_path(dubins_path, section_length); 
 
         this->publish_path(sections);
     }
 
-private:
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
-    rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr plan_subscription_;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+   public:
+    explicit FollowPathActionClient() : Node("FollowPath_action_client") {
+
+        // Get shelfino ID parameter
+        this->declare_parameter("shelfino_id", 0);
+
+        std::string action_server_name = "/shelfino#/follow_path";
+        action_server_name.replace(action_server_name.find('#'), 1,
+                                   std::to_string(this->get_parameter("shelfino_id").as_int()));
+
+        std::string publish_path_topic = "/shelfino#/plan1";
+        publish_path_topic.replace(publish_path_topic.find('#'), 1,
+                                   std::to_string(this->get_parameter("shelfino_id").as_int()));
+
+        // create action client
+        this->client_ptr_ = rclcpp_action::create_client<FollowPath>(this, action_server_name);
+        // Create publisher for the path
+        this->path_publisher_ = this->create_publisher<nav_msgs::msg::Path>(publish_path_topic, 10);
+
+        // Subscribe to the /victims_path_planner topic
+        this->plan_subscription_ = this->create_subscription<nav_msgs::msg::Path>("victims_rescue_path",
+                 rclcpp::QoS(rclcpp::KeepLast(10)), std::bind(&FollowPathActionClient::plan_callback, this, std::placeholders::_1));
+    }
 };
 
 int main(int argc, char** argv) {

@@ -173,7 +173,7 @@ public:
   on_activate(const rclcpp_lifecycle::State& state)
   {
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
-    path_publisher_ = create_publisher<nav_msgs::msg::Path>("victims_rescue_path", 10);
+    this->path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("victims_rescue_path", 10);
     double dist_max = ROBOT_VELOCITY * MAX_TIME;
     std::vector<double> rewards;
 
@@ -189,15 +189,18 @@ public:
     std::vector<int> path = solver.find_optimal_path_BnB();
     RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f]", get_clock()->now().seconds());
   
-    if (path.empty()) {
+    if (!path.empty()) {
       RCLCPP_INFO(get_logger(), "Couldn't find path", get_clock()->now().seconds());
-      path = {0};
+      path = {0, 1};
     }
+
+    path = {0, 1, 2, 3, 4};
     std::stringstream ss;
-    ss << "Optimal path: 0";
-    auto path_msg = std::make_shared<nav_msgs::msg::Path>();
-    path_msg->header.stamp = now();
-    path_msg->header.frame_id = "map";
+    ss << "Optimal path: ";
+
+    nav_msgs::msg::Path path_msg;
+    path_msg.header.stamp = now();
+    path_msg.header.frame_id = "map";
 
     for (int i = 0; i < path.size(); ++i) {   
         geometry_msgs::msg::PoseStamped pose_stamped;
@@ -220,13 +223,13 @@ public:
             pose_stamped.pose.position.y = victims[i-1].y;
         }
 
-        path_msg->poses.push_back(pose_stamped);
+        path_msg.poses.push_back(pose_stamped);
 
         ss<<", "<< path[i];
     }
     
     RCLCPP_INFO(get_logger(), ss.str().c_str(), get_clock()->now().seconds());
-
+    this->path_publisher_->publish(path_msg);
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
