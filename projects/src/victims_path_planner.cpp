@@ -191,13 +191,10 @@ public:
   
     if (path.empty()) {
       RCLCPP_INFO(get_logger(), "Couldn't find path", get_clock()->now().seconds());
-      return;
+      path = {0};
     }
-    std::stringstream ss = "Optimal path: 0";
-    for (int j = 0; j < path.size(); j++) {
-      ss<<", "<< path[j];
-    }
-
+    std::stringstream ss;
+    ss << "Optimal path: 0";
     auto path_msg = std::make_shared<nav_msgs::msg::Path>();
     path_msg->header.stamp = now();
     path_msg->header.frame_id = "map";
@@ -207,10 +204,7 @@ public:
         pose_stamped.header.stamp = now();
         pose_stamped.header.frame_id = "map";
 
-        if (i == 0) {
-            pose_stamped.pose.position.x = initial_pose.x;
-            pose_stamped.pose.position.y = initial_pose.y;
-        } else if (i == path.size() - 1) {
+        if (i == path.size() - 1) {
             pose_stamped.pose.position.x = gate_pose.position.x;
             pose_stamped.pose.position.y = gate_pose.position.y;
             pose_stamped.pose.position.z = gate_pose.position.z;
@@ -218,6 +212,9 @@ public:
             pose_stamped.pose.orientation.y = gate_pose.orientation.y;
             pose_stamped.pose.orientation.z = gate_pose.orientation.z;
             pose_stamped.pose.orientation.w = gate_pose.orientation.w;
+        } else if (i == 0) {
+            pose_stamped.pose.position.x = initial_pose.x;
+            pose_stamped.pose.position.y = initial_pose.y;
         } else {
             pose_stamped.pose.position.x = victims[i-1].x;
             pose_stamped.pose.position.y = victims[i-1].y;

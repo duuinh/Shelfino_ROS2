@@ -1,7 +1,6 @@
 #ifndef COMMON_DEFINES_H
 #define COMMON_DEFINES_H
 
-#define MAX_TIME 100
 #define PI 3.141592653589793
 
 #define ROBOT_CIRCLE    0.4             // radius of robot occupation [m]
