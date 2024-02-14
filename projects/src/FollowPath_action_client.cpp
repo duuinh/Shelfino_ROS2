@@ -221,8 +221,6 @@ class FollowPathActionClient : public rclcpp::Node {
             dubins_curves.push_back(dubins_curve);
         }
 
-         auto header = std_msgs::msg::Header();
-
         // Convert Dubins curves to a sequence of points
         auto dubins_path = generate_path(dubins_curves, header);
 

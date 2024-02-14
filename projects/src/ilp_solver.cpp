@@ -276,7 +276,7 @@ BnB_Node ILP_Solver::modify_constraint(int i, int new_value,
 
 std::vector<int> ILP_Solver::reconstruct_path(
     const std::vector<double> &solution) {
-    std::vector<int> optimal_path;
+    std::vector<int> optimal_path = {0};
     std::vector<std::vector<double>> solution_matrix =
         reshape(solution, n_nodes_, n_nodes_);
     int current_node = 0;

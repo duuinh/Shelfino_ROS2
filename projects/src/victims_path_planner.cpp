@@ -5,9 +5,12 @@
 #include "geometry_msgs/msg/polygon.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "graph_node_struct.hpp"
 #include "ilp_solver.hpp"
 #include "common_defines.h"
+#include "utils.h"
+#include "nav_msgs/msg/path.hpp"
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
@@ -17,20 +20,8 @@ private:
     rclcpp::Subscription<obstacles_msgs::msg::ObstacleArrayMsg>::SharedPtr sub_victims_;
     rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_gate_;
     rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_initial_pos_;
-
-    const rmw_qos_profile_t rmw_qos_profile_custom =
-    {
-      RMW_QOS_POLICY_HISTORY_KEEP_LAST,
-      10,
-      RMW_QOS_POLICY_RELIABILITY_RELIABLE,
-      RMW_QOS_POLICY_DURABILITY_TRANSIENT_LOCAL,
-      RMW_QOS_DEADLINE_DEFAULT,
-      RMW_QOS_LIFESPAN_DEFAULT,
-      RMW_QOS_POLICY_LIVELINESS_SYSTEM_DEFAULT,
-      RMW_QOS_LIVELINESS_LEASE_DURATION_DEFAULT,
-      false
-    };
-
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+    
     bool borders_ready = false;
     bool obstacles_ready = false;
     bool victims_ready = false;
@@ -41,11 +32,10 @@ private:
     std::vector<graph_node> borders;
     std::vector<obstacle> obstacles;
     std::vector<graph_node> victims;
-    graph_node gate_pose;
+    geometry_msgs::msg::Pose gate_pose;
     graph_node initial_pose;
 
     std::vector<std::vector<double>> road_map;
-    std::vector<graph_node> optimal_path;
 
     void construct_roadmap();
     double distance(graph_node& e1, graph_node& e2);
@@ -97,7 +87,7 @@ private:
         for (const auto& pose : msg->poses) {
           RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f", pose.position.x, pose.position.y);
           // obstacle gate {0.0, pose.position.x, pose.position.y, 1.0, 1.0, obstacle_type::BOX};
-          this->gate_pose ={pose.position.x, pose.position.y, 0.0};
+          this->gate_pose = pose;
         }
         this->gate_ready = true;
         this->activate_wrapper();
@@ -183,6 +173,7 @@ public:
   on_activate(const rclcpp_lifecycle::State& state)
   {
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
+    path_publisher_ = create_publisher<nav_msgs::msg::Path>("victims_rescue_path", 10);
     double dist_max = ROBOT_VELOCITY * MAX_TIME;
     std::vector<double> rewards;
 
@@ -197,11 +188,48 @@ public:
     ILP_Solver solver = ILP_Solver(rewards, road_map, dist_max);
     std::vector<int> path = solver.find_optimal_path_BnB();
     RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f]", get_clock()->now().seconds());
-    for (int j = 0; j < path.size(); j++) {
-      std::cout << path[j] << std::endl;
-
+  
+    if (path.empty()) {
+      RCLCPP_INFO(get_logger(), "Couldn't find path", get_clock()->now().seconds());
+      return;
     }
-    // TODO: motion_planning();
+    std::stringstream ss = "Optimal path: 0";
+    for (int j = 0; j < path.size(); j++) {
+      ss<<", "<< path[j];
+    }
+
+    auto path_msg = std::make_shared<nav_msgs::msg::Path>();
+    path_msg->header.stamp = now();
+    path_msg->header.frame_id = "map";
+
+    for (int i = 0; i < path.size(); ++i) {   
+        geometry_msgs::msg::PoseStamped pose_stamped;
+        pose_stamped.header.stamp = now();
+        pose_stamped.header.frame_id = "map";
+
+        if (i == 0) {
+            pose_stamped.pose.position.x = initial_pose.x;
+            pose_stamped.pose.position.y = initial_pose.y;
+        } else if (i == path.size() - 1) {
+            pose_stamped.pose.position.x = gate_pose.position.x;
+            pose_stamped.pose.position.y = gate_pose.position.y;
+            pose_stamped.pose.position.z = gate_pose.position.z;
+            pose_stamped.pose.orientation.x = gate_pose.orientation.x;
+            pose_stamped.pose.orientation.y = gate_pose.orientation.y;
+            pose_stamped.pose.orientation.z = gate_pose.orientation.z;
+            pose_stamped.pose.orientation.w = gate_pose.orientation.w;
+        } else {
+            pose_stamped.pose.position.x = victims[i-1].x;
+            pose_stamped.pose.position.y = victims[i-1].y;
+        }
+
+        path_msg->poses.push_back(pose_stamped);
+
+        ss<<", "<< path[i];
+    }
+    
+    RCLCPP_INFO(get_logger(), ss.str().c_str(), get_clock()->now().seconds());
+
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -221,7 +249,7 @@ void VictimsPathPlannerNode::construct_roadmap() {
 
     std::vector<graph_node> nodes = this->victims;
     nodes.insert(nodes.begin(), initial_pose);
-    nodes.push_back(gate_pose);
+    nodes.push_back({gate_pose.position.x, gate_pose.position.y});
     road_map.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
     
     for (size_t i = 0; i < nodes.size(); ++i) {
