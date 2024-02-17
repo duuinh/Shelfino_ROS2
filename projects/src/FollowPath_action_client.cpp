@@ -105,22 +105,17 @@ class FollowPathActionClient : public rclcpp::Node {
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
 
     void send_goal(nav_msgs::msg::Path path) {
-        RCLCPP_INFO(get_logger(), "xxx");
-
         if (!this->client_ptr_->wait_for_action_server()) {
             RCLCPP_ERROR(this->get_logger(), "Action server not available after waiting");
             rclcpp::shutdown();
             return;
         }
-        RCLCPP_INFO(get_logger(), "yyy");
 
         auto goal_msg = FollowPath::Goal();
         goal_msg.path = path;
         goal_msg.path.header.stamp = this->now();
         goal_msg.path.header.frame_id = "map";
         goal_msg.controller_id = "FollowPath";
-
-        RCLCPP_INFO(get_logger(), "zzz");
 
         auto send_goal_options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
         send_goal_options.goal_response_callback =

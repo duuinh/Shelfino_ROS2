@@ -13,14 +13,6 @@ std::vector<int> find_optimal_path(double max_distance, std::vector<std::vector<
         combinations.push_back(nodes);
     } while ( std::next_permutation(nodes.begin(),nodes.end()) );
 
-
-    for (int i = 0; i < combinations.size(); i++) {
-        for (int j = 0; j < combinations[i].size(); j++) {
-        std::cout << combinations[i][j];
-        }
-        std::cout << std::endl;
-    }
-    
     std::vector<int> best_path;
     double best_path_reward = -1;
     double best_path_distance = 0;
@@ -51,9 +43,6 @@ std::vector<int> find_optimal_path(double max_distance, std::vector<std::vector<
         }
     }
     
-    for (int j = 0; j < best_path.size(); j++) {
-        std::cout << best_path[j] << std::endl;
-    }
     std::cout << "best_path_reward: "<< best_path_reward << std::endl;
     std::cout << "best_path_distance: "<< best_path_distance << std::endl;
     return best_path;
