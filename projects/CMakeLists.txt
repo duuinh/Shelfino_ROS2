@@ -33,6 +33,7 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/math_utils.cpp
   src/dubins.cpp
   src/shapes.cpp
+  src/orienteering_solver.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
@@ -43,7 +44,14 @@ target_compile_features(${PROJECT_NAME}_lib PUBLIC c_std_99 cxx_std_17)
 
 # build nodes
 foreach(NODE ${NODES})
-  add_executable(${NODE} src/${NODE}.cpp src/simplex.cpp src/ilp_solver.cpp src/math_utils.cpp src/dubins.cpp src/shapes.cpp)
+  add_executable(${NODE} 
+    src/${NODE}.cpp 
+    src/simplex.cpp 
+    src/ilp_solver.cpp 
+    src/math_utils.cpp 
+    src/dubins.cpp 
+    src/shapes.cpp 
+    src/orienteering_solver.cpp)
 
   target_include_directories(${NODE} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

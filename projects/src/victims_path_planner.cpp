@@ -11,6 +11,7 @@
 #include "common_defines.h"
 #include "utils.h"
 #include "nav_msgs/msg/path.hpp"
+#include "orienteering_solver.hpp"
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
@@ -174,7 +175,7 @@ public:
   {
     RCLCPP_INFO(this->get_logger(), "Activating VictimsPathPlannerNode");
     this->path_publisher_ = this->create_publisher<nav_msgs::msg::Path>("victims_rescue_path", 10);
-    double dist_max = ROBOT_VELOCITY * MAX_TIME;
+    double max_distance = ROBOT_VELOCITY * MAX_TIME;
     std::vector<double> rewards;
 
     // initilize rawards vector
@@ -185,16 +186,15 @@ public:
     rewards.push_back(0);   // end node
 
     RCLCPP_INFO(get_logger(), "Starting mission planning [time: %f]", get_clock()->now().seconds());
-    ILP_Solver solver = ILP_Solver(rewards, road_map, dist_max);
-    std::vector<int> path = solver.find_optimal_path_BnB();
-    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f]", get_clock()->now().seconds());
-  
-    if (!path.empty()) {
-      RCLCPP_INFO(get_logger(), "Couldn't find path", get_clock()->now().seconds());
-      path = {0, 1};
-    }
+    // Brute force
+    std::vector<int> path = find_optimal_path(max_distance, road_map, rewards);
 
-    path = {0, 1, 2, 3, 4};
+    // // Branch and Bound method
+    // ILP_Solver solver = ILP_Solver(rewards, road_map, max_distance);
+    // std::vector<int> path = solver.find_optimal_path_BnB();
+
+    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f]", get_clock()->now().seconds());
+
     std::stringstream ss;
     ss << "Optimal path: ";
 
