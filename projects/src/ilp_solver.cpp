@@ -219,8 +219,8 @@ std::vector<std::vector<int>> ILP_Solver::generate_combinations() {
     std::vector<std::vector<int>> combinations;
     // nodes included in combinations
     std::vector<int> nodes(n_nodes_ - 2);
-    for (int i = 1; i < n_nodes_-1; ++i) {
-        nodes[i] = i;
+    for (int i = 0; i < n_nodes_-2; ++i) {
+        nodes[i] = i+1;
     }
     // generate combinations with sizes from 2 to n - 2
     for (int i = 2; i < n_nodes_-1; ++i) {
@@ -289,6 +289,9 @@ std::vector<int> ILP_Solver::reconstruct_path(
                 break;
             }
         }
+    }
+    if (optimal_path.empty()) {
+      optimal_path = {0, n_nodes_-1};
     }
     return optimal_path;
 }
