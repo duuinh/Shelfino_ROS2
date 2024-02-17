@@ -58,11 +58,15 @@ private:
         RCLCPP_INFO(get_logger(), "Received array with %zu obstacles:", msg->obstacles.size());
         for (const auto& obstacle : msg->obstacles)
         {
-            if (obstacle.polygon.points.size() == 1) { //cylinder
+            if (obstacle.polygon.points.size() == 1) {
               RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f, radius: %.2f, type: cylinder", obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius);
-              this->obstacles.push_back({obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius});
-            } else { // box
-              // TODO
+              this->obstacles.push_back({obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius, 0, 0, obstacle_type::CYLINDER});
+            } else {
+              double x = (obstacle.polygon.points[0].x + obstacle.polygon.points[2].x)/2.0;
+              double y = (obstacle.polygon.points[0].y + obstacle.polygon.points[1].y)/2.0;
+              double dx = (obstacle.polygon.points[2].x - x)*2;
+              double dy = (obstacle.polygon.points[2].y - y)*2;
+              this->obstacles.push_back({x, y, 0, dx, dy, obstacle_type::BOX});
             }
             
         }

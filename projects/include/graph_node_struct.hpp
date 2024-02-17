@@ -11,7 +11,8 @@ enum obstacle_type {
 struct obstacle {
   double x, y;
   double radius;
-  // obstacle_type type;
+  double dx, dy;
+  obstacle_type type;
 };
 
 struct graph_node {
