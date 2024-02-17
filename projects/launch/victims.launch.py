@@ -216,44 +216,10 @@ def generate_launch_description():
         output='screen',
         parameters=[map_env_params_file]
     )
-    victims_path_planner_node = Node (
-        package='projects',
-        executable='victims_path_planner',
-        name='victims_path_planner',
-        output='screen',
-        parameters=[{'shelfino_id': shelfino_id}]
-    )
-
-    FollowPath_action_client_node = Node (
-        package='projects',
-        executable='FollowPath_action_client',
-        name='FollowPath_action_client',
-        output='screen',
-        parameters=[{'shelfino_id': shelfino_id}, {'use_sim_time': use_sim_time}]
-    )
-
-    # PathPlanner_action_client_node = Node (
-    #     package='projects',
-    #     executable='planner_client',
-    #     name='planner_client',
-    #     output='screen',
-    #     parameters=[{'shelfino_id': shelfino_id}]
-    # )
-
-    # sample_path_publisher_node = Node (
-    #     package='projects',
-    #     executable='sample_path_publisher',
-    #     name='sample_path_publisher',
-    #     output='screen',
-    #     parameters=[{'shelfino_id': shelfino_id}]
-    # )
 
     ld.add_action(map_pkg_launch)
     ld.add_action(sim_nodes)
     ld.add_action(create_map_node)
-    ld.add_action(FollowPath_action_client_node)
-    #ld.add_action(PathPlanner_action_client_node)
-    # ld.add_action(sample_path_publisher_node)
 
     def launch_nodes(event: ProcessExited, context: LaunchContext):
         print(f'node {event.process_name} exited, launching other nodes.')
@@ -274,5 +240,14 @@ def generate_launch_description():
         output='screen',
         parameters=[{'shelfino_id': shelfino_id}]
     )
+
+    FollowPath_action_client_node = Node (
+        package='projects',
+        executable='FollowPath_action_client',
+        name='FollowPath_action_client',
+        output='screen',
+        parameters=[{'shelfino_id': shelfino_id}, {'use_sim_time': use_sim_time}]
+    )
     ld.add_action(victims_path_planner_node)
+    ld.add_action(FollowPath_action_client_node)
     return ld
