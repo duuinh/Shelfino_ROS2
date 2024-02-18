@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "nav_msgs/msg/path.hpp"
 #include "orienteering_solver.hpp"
+#include "a_star.hpp"
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
@@ -36,10 +37,10 @@ private:
     geometry_msgs::msg::Pose gate_pose;
     graph_node initial_pose;
 
-    std::vector<std::vector<double>> road_map;
+    std::vector<std::vector<double>> distance_matrix;
+    std::vector<std::vector<std::vector<Point>>> road_map;
 
     void construct_roadmap();
-    double distance(graph_node& e1, graph_node& e2);
 
     void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
     {
@@ -191,7 +192,7 @@ public:
 
     RCLCPP_INFO(get_logger(), "Starting mission planning [time: %f]", get_clock()->now().seconds());
     // Brute force
-    std::vector<int> path = find_optimal_path(max_distance, road_map, rewards);
+    std::vector<int> path = find_optimal_path(max_distance, distance_matrix, rewards);
 
     // // Branch and Bound method
     // ILP_Solver solver = ILP_Solver(rewards, road_map, max_distance);
@@ -254,13 +255,14 @@ void VictimsPathPlannerNode::construct_roadmap() {
     std::vector<graph_node> nodes = this->victims;
     nodes.insert(nodes.begin(), initial_pose);
     nodes.push_back({gate_pose.position.x, gate_pose.position.y});
-    road_map.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
+    distance_matrix.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
     
+    AStar planner = AStar(borders, obstacles);
     for (size_t i = 0; i < nodes.size(); ++i) {
       for (size_t j = 0; j < nodes.size(); ++j) {
           if (i != j) {
-          //TODO: use A star shortest path
-            road_map[i][j] = distance(victims[i],victims[j]);
+            distance_matrix[i][j] = planner.get_shortest_path(nodes[i],nodes[j]).length;
+            road_map[i][j] = planner.get_shortest_path(nodes[i],nodes[j]).path;
           }
       }
     }
@@ -272,17 +274,13 @@ void VictimsPathPlannerNode::construct_roadmap() {
     for (size_t i = 0; i < nodes.size(); ++i) {
       std::string log = "  [ ";
       for (size_t j = 0; j < nodes.size(); ++j) {
-          log += std::to_string(road_map[i][j]) + " ";
+          log += std::to_string(distance_matrix[i][j]) + " ";
       }
       log += "]";
       RCLCPP_INFO(get_logger(), log.c_str() );
     }
     this->roadmap_ready = true;
   }
-}
-
-double VictimsPathPlannerNode::distance(graph_node& e1, graph_node& e2) {
-  return std::sqrt(std::pow(e1.x-e2.x, 2) + std::pow(e1.y-e2.y, 2));
 }
 
 int main(int argc, char * argv[])
