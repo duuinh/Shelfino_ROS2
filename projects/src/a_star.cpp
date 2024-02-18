@@ -79,15 +79,15 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
     std::unordered_map<int, AStarNode> open_set_map, closed_set;
 
     auto compare_nodes = [&](const int& lhs, const int& rhs) {
-        return open_set_map.find(lhs)->second.getF_score(target_point_scaled) > open_set_map.find(rhs)->second.getF_score(target_point_scaled);
+        return open_set_map.at(lhs).getF_score(target_point_scaled) > open_set_map.at(rhs).getF_score(target_point_scaled);
     };
     std::priority_queue<int, std::vector<int>, decltype(compare_nodes)> open_set(compare_nodes);
 
     open_set.push(get_node_index(start_node));
-    open_set_map[get_node_index(start_node)] = start_node;
+    open_set_map.insert({get_node_index(start_node), start_node});
 
     while (!open_set.empty()) {
-        AStarNode current_node = open_set_map[open_set.top()];
+        AStarNode current_node = open_set_map.at(open_set.top());
         open_set.pop();
         open_set_map.erase(get_node_index(current_node));
 
@@ -96,14 +96,13 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
 
             while (current_node.parent_idx != -1) {
                 shortest_path.path.push_back({get_xy_original(current_node.x, x_min), get_xy_original(current_node.y, y_min)});
-                current_node = closed_set[get_node_index(current_node)];
+                current_node = closed_set.at(get_node_index(current_node));
             }
             std::reverse(shortest_path.path.begin(), shortest_path.path.end());
             break;
         }
 
-        closed_set[get_node_index(current_node)] = current_node;
-        
+        closed_set.insert({get_node_index(current_node), current_node});
         for (auto& direction : directions) {
             AStarNode neighbor = AStarNode(current_node.x + direction.dx, 
                                             current_node.y + direction.dy, 
@@ -117,11 +116,11 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
                 continue;
             }
             // Check if the neighbor is not in open set or has a lower cost
-            if (std::find_if(open_set_map.cbegin(), open_set_map.cend(), [&](const AStarNode& visited_node) {
-                    return visited_node == neighbor && visited_node.g <= neighbor.g;
+            if (std::find_if(open_set_map.cbegin(), open_set_map.cend(), [&](const std::pair<int, AStarNode>& element) {
+                    return element.second == neighbor && element.second.g <= neighbor.g;
                 }) == open_set_map.cend()) {
 
-                open_set_map[get_node_index(neighbor)] = neighbor;
+                open_set_map.insert({get_node_index(neighbor), neighbor});
                 open_set.push(get_node_index(neighbor));
             }
         }
