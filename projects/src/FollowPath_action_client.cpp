@@ -103,6 +103,8 @@ class FollowPathActionClient : public rclcpp::Node {
     rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr plan_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+    int section_cnt = 0;
+    std::vector<nav_msgs::msg::Path> sections;
 
     void send_goal(nav_msgs::msg::Path path) {
         if (!this->client_ptr_->wait_for_action_server()) {
@@ -131,7 +133,6 @@ class FollowPathActionClient : public rclcpp::Node {
     }
 
     void goal_response_callback(const GoalHandleFollowPath::SharedPtr& goal_handle) {
-        // auto goal_handle = future.get();
         if (!goal_handle) {
             RCLCPP_ERROR(this->get_logger(), "Goal was rejected by server");
         } else {
@@ -139,18 +140,30 @@ class FollowPathActionClient : public rclcpp::Node {
         }
     }
 
-    void feedback_callback(GoalHandleFollowPath::SharedPtr,
+    void feedback_callback(const GoalHandleFollowPath::SharedPtr& goal_handle,
                            const std::shared_ptr<const FollowPath::Feedback> feedback) {
         std::stringstream ss;
-        ss << "Distance to goal: " << feedback->distance_to_goal << ", Speed: " << feedback->speed;
+        double distance_to_goal = feedback->distance_to_goal;
+        ss << "Distance to goal: " << distance_to_goal << ", Speed: " << feedback->speed;
         RCLCPP_INFO(this->get_logger(), "Received feedback");
         RCLCPP_INFO(this->get_logger(), ss.str().c_str());
+    
+        // if (distance_to_goal < 0.5) {
+        //     // this->publish_path(this->sections[section_cnt]);
+        //     this->client_ptr_->async_cancel_all_goals
+        //     (
+        //     [this](rclcpp_action::Client<FollowPath>::SharedPtr client) {
+        //         RCLCPP_INFO(get_logger(), "All goals canceled");
+        //         this->publish_path(this->sections[section_cnt]);
+        //     });
+        // }
     }
 
     void result_callback(const GoalHandleFollowPath::WrappedResult& result) {
         switch (result.code) {
             case rclcpp_action::ResultCode::SUCCEEDED:
                 RCLCPP_INFO(this->get_logger(), "Goal succeeded");
+                 this->publish_path(this->sections[section_cnt]);
                 break;
             case rclcpp_action::ResultCode::ABORTED:
                 RCLCPP_ERROR(this->get_logger(), "Goal was aborted");
@@ -164,10 +177,12 @@ class FollowPathActionClient : public rclcpp::Node {
         }
     }
 
-    void publish_path(std::vector<nav_msgs::msg::Path> path_msg_list) {
-        for (const auto& path_msg : path_msg_list) {
+    void publish_path(nav_msgs::msg::Path path_msg) {
+        if (this->section_cnt < this->sections.size()) {
             this->path_publisher_->publish(path_msg);
             this->send_goal(path_msg);
+            this->section_cnt += 1;
+            RCLCPP_INFO(this->get_logger(), "Section sent!");
         }
     }
 
@@ -175,7 +190,7 @@ class FollowPathActionClient : public rclcpp::Node {
         std_msgs::msg::Header header;
         header.stamp = this->now();
         double section_length = 5.0;
-        double curvature = 5.0; // Set your curvature value here
+        double curvature = 0.2; // Set your curvature value here
 
         std::vector<PathCurve> dubins_curves;
 
@@ -199,9 +214,9 @@ class FollowPathActionClient : public rclcpp::Node {
         auto dubins_path = generate_path(dubins_curves, header);
 
         // Split the Dubins path into smaller sections
-        auto sections = split_path(dubins_path, section_length); 
+        this->sections = split_path(dubins_path, section_length); 
 
-        this->publish_path(sections);
+        this->publish_path(this->sections[section_cnt]);
     }
 
    public:
