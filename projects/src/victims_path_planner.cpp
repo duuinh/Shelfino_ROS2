@@ -109,13 +109,8 @@ private:
 
     void activate_wrapper()
     {
-      this->construct_roadmap();
-      if (this->roadmap_ready) {
-        RCLCPP_INFO(this->get_logger(), "Roadmap ready");
-        this->activate();
-      }
-      else {
-        RCLCPP_INFO(this->get_logger(), "Waiting for roadmap to be ready");
+      if (!this->roadmap_ready) {
+        this->construct_roadmap();
       }
     }
 
@@ -224,9 +219,18 @@ public:
         } else if (i == 0) {
             pose_stamped.pose.position.x = initial_pose.x;
             pose_stamped.pose.position.y = initial_pose.y;
+            pose_stamped.pose.orientation.x = 0.0;
+            pose_stamped.pose.orientation.y = 0.0;
+            pose_stamped.pose.orientation.z = 0.0;
+            pose_stamped.pose.orientation.w = 1.0;
         } else {
             pose_stamped.pose.position.x = victims[i-1].x;
             pose_stamped.pose.position.y = victims[i-1].y;
+            pose_stamped.pose.position.z = 0.0;
+            pose_stamped.pose.orientation.x = 0.0;
+            pose_stamped.pose.orientation.y = 0.0;
+            pose_stamped.pose.orientation.z = 0.0;
+            pose_stamped.pose.orientation.w = 1.0;
         }
 
         path_msg.poses.push_back(pose_stamped);
@@ -283,6 +287,8 @@ void VictimsPathPlannerNode::construct_roadmap() {
       RCLCPP_INFO(get_logger(), log.c_str() );
     }
     this->roadmap_ready = true;
+    RCLCPP_INFO(this->get_logger(), "Roadmap ready");
+    this->activate();
   }
 }
 
