@@ -24,7 +24,7 @@ struct Point
 
 struct ShortestPath
 {
-    std::vector<Point> path;
+    std::vector<graph_node> path;
     double length;
 };
 
@@ -83,7 +83,7 @@ public:
 private:
     int get_node_index(AStarNode node);
     int get_xy_scaled(double xy_original, double xy_min);
-    int get_xy_original(double xy_scaled, double xy_min);
+    double get_xy_original(int xy_scaled, double xy_min);
 
     // Function to get points along a line using Bresenham's algorithm
     std::vector<Point> get_points_along_line(int x1, int y1, int x2, int y2);

@@ -38,7 +38,7 @@ private:
     graph_node initial_pose;
 
     std::vector<std::vector<double>> distance_matrix;
-    std::vector<std::vector<std::vector<Point>>> road_map;
+    std::vector<std::vector<std::vector<graph_node>>> road_map;
 
     void construct_roadmap();
 
@@ -255,14 +255,17 @@ void VictimsPathPlannerNode::construct_roadmap() {
     std::vector<graph_node> nodes = this->victims;
     nodes.insert(nodes.begin(), initial_pose);
     nodes.push_back({gate_pose.position.x, gate_pose.position.y});
+
     distance_matrix.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
-    
+    road_map.resize(nodes.size(), std::vector<std::vector<graph_node>>(nodes.size()));
+
     AStar planner = AStar(borders, obstacles);
     for (size_t i = 0; i < nodes.size(); ++i) {
       for (size_t j = 0; j < nodes.size(); ++j) {
           if (i != j) {
-            distance_matrix[i][j] = planner.get_shortest_path(nodes[i],nodes[j]).length;
-            road_map[i][j] = planner.get_shortest_path(nodes[i],nodes[j]).path;
+            ShortestPath shortest_path = planner.get_shortest_path(nodes[i],nodes[j]);
+            distance_matrix[i][j] = shortest_path.length;
+            road_map[i][j] = shortest_path.path;
           }
       }
     }

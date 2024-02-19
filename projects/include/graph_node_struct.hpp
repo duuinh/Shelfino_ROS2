@@ -1,8 +1,5 @@
 #pragma once
 
-#include <string> 
-#include <vector>
-
 enum obstacle_type {
   CYLINDER,
   BOX

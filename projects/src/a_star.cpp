@@ -17,8 +17,8 @@ AStar::AStar(std::vector<graph_node> borders, std::vector<obstacle> obstacles) {
        }
     }
     
-    x_width = round((x_max-x_min)/resolution);
-    y_width = round((y_max-y_min)/resolution);
+    x_width = round((x_max-x_min)/resolution)+1;
+    y_width = round((y_max-y_min)/resolution)+1;
 
     obstacle_map.resize(x_width, std::vector<bool>(y_width, false));
 
@@ -63,7 +63,7 @@ AStar::AStar(std::vector<graph_node> borders, std::vector<obstacle> obstacles) {
     border_points.insert(border_points.end(), line_1.begin(), line_1.end());
     border_points.insert(border_points.end(), line_2.begin(), line_2.end());
     border_points.insert(border_points.end(), line_3.begin(), line_3.end());
-    border_points.insert(border_points.end(), line_3.begin(), line_3.end());
+    border_points.insert(border_points.end(), line_4.begin(), line_4.end());
 
     for (auto& border_point : border_points) {
         obstacle_map[border_point.x][border_point.y] = true;
@@ -92,17 +92,18 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
         open_set_map.erase(get_node_index(current_node));
 
         if (current_node == target_point_scaled) {
-            shortest_path.length = current_node.g;
+            shortest_path.length = current_node.g*resolution;
 
             while (current_node.parent_idx != -1) {
                 shortest_path.path.push_back({get_xy_original(current_node.x, x_min), get_xy_original(current_node.y, y_min)});
-                current_node = closed_set.at(get_node_index(current_node));
+                current_node = closed_set.at(current_node.parent_idx);
             }
             std::reverse(shortest_path.path.begin(), shortest_path.path.end());
             break;
         }
 
         closed_set.insert({get_node_index(current_node), current_node});
+
         for (auto& direction : directions) {
             AStarNode neighbor = AStarNode(current_node.x + direction.dx, 
                                             current_node.y + direction.dy, 
@@ -115,11 +116,10 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
             if (obstacle_map[neighbor.x][neighbor.y]) {
                 continue;
             }
-            // Check if the neighbor is not in open set or has a lower cost
-            if (std::find_if(open_set_map.cbegin(), open_set_map.cend(), [&](const std::pair<int, AStarNode>& element) {
-                    return element.second == neighbor && element.second.g <= neighbor.g;
-                }) == open_set_map.cend()) {
-
+            auto it = open_set_map.find(get_node_index(neighbor)); // in open set and has a higer cost
+            if (it != open_set_map.end() && it->second.g > neighbor.g) {
+                open_set_map.insert({get_node_index(neighbor), neighbor});
+            } else if (it == open_set_map.end()) { // not in open set 
                 open_set_map.insert({get_node_index(neighbor), neighbor});
                 open_set.push(get_node_index(neighbor));
             }
@@ -134,11 +134,11 @@ int AStar::get_node_index(AStarNode node) {
 }
 
 int AStar::get_xy_scaled(double xy_original, double xy_min) {
-    return round((xy_original-x_min)/resolution);
+    return round((xy_original-xy_min)/resolution);
 }
 
-int AStar::get_xy_original(double xy_scaled, double xy_min) {
-    return xy_scaled * resolution + x_min;
+double AStar::get_xy_original(int xy_scaled, double xy_min) {
+    return xy_scaled * resolution + xy_min;
 }
 
 // Function to get points along a line using Bresenham's algorithm
