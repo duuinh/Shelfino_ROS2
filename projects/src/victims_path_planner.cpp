@@ -190,7 +190,8 @@ public:
     }
     rewards.push_back(0);   // end node
 
-    RCLCPP_INFO(get_logger(), "Starting mission planning [time: %f]", get_clock()->now().seconds());
+    auto start_time = get_clock()->now().seconds();
+    RCLCPP_INFO(get_logger(), "Starting mission planning");
     // Brute force
     std::vector<int> path = find_optimal_path(max_distance, distance_matrix, rewards);
 
@@ -198,7 +199,7 @@ public:
     // ILP_Solver solver = ILP_Solver(rewards, road_map, max_distance);
     // std::vector<int> path = solver.find_optimal_path_BnB();
 
-    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f]", get_clock()->now().seconds());
+    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f sec]", get_clock()->now().seconds() - start_time);
 
     std::stringstream ss;
     ss << "Optimal path: ";
@@ -230,7 +231,7 @@ public:
 
         path_msg.poses.push_back(pose_stamped);
 
-        ss<<", "<< path[i];
+        ss<< path[i]<<", ";
     }
     
     RCLCPP_INFO(get_logger(), ss.str().c_str(), get_clock()->now().seconds());
@@ -249,8 +250,8 @@ public:
 
 void VictimsPathPlannerNode::construct_roadmap() {
   if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready) {
-
-    RCLCPP_INFO(get_logger(), "Starting roadmap construction [time: %f]", get_clock()->now().seconds());
+    auto start_time = get_clock()->now().seconds();
+    RCLCPP_INFO(get_logger(), "Starting roadmap construction");
 
     std::vector<graph_node> nodes = this->victims;
     nodes.insert(nodes.begin(), initial_pose);
@@ -270,10 +271,9 @@ void VictimsPathPlannerNode::construct_roadmap() {
       }
     }
 
-    RCLCPP_INFO(get_logger(), "Finished roadmap construction [time: %f]", get_clock()->now().seconds());
+    RCLCPP_INFO(get_logger(), "Finished roadmap construction [time: %f sec]", get_clock()->now().seconds()-start_time);
 
     // print log
-    RCLCPP_INFO(this->get_logger(), "Created roadmap");
     for (size_t i = 0; i < nodes.size(); ++i) {
       std::string log = "  [ ";
       for (size_t j = 0; j < nodes.size(); ++j) {
