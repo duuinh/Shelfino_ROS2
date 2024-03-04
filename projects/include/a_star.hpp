@@ -6,7 +6,7 @@
 #include <cmath>
 #include <algorithm>
 #include <limits>
-#include "graph_node_struct.hpp"
+#include "common_struct.hpp"
 #include "common_defines.h"
 
 struct Direction

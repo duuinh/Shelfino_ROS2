@@ -6,7 +6,7 @@
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose_with_covariance_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
-#include "graph_node_struct.hpp"
+#include "common_struct.hpp"
 #include "ilp_solver.hpp"
 #include "common_defines.h"
 #include "utils.h"
