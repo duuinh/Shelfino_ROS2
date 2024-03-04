@@ -190,10 +190,12 @@ class FollowPathActionClient : public rclcpp::Node {
         std_msgs::msg::Header header;
         header.stamp = this->now();
         double section_length = 5.0;
-        double curvature = 0.2; // Set your curvature value here
+        double curvature = 5; // Set your curvature value here
 
         std::vector<PathCurve> dubins_curves;
 
+        auto start_time = get_clock()->now().seconds();
+        RCLCPP_INFO(get_logger(), "Starting Dubins motion planning");
         // Iterate over pairs of consecutive points from the received path
         for (size_t i = 0; i < path_msg->poses.size() - 1; ++i)
         {
@@ -201,14 +203,18 @@ class FollowPathActionClient : public rclcpp::Node {
             const auto &start_pose = path_msg->poses[i].pose;
             const auto &end_pose = path_msg->poses[i + 1].pose;
 
-            PathPoint start_point(start_pose.position.x, start_pose.position.y, start_pose.position.z);
-            PathPoint end_point(end_pose.position.x, end_pose.position.y, end_pose.position.z);
+
+
+            WayPoint start_point(start_pose.position.x, start_pose.position.y, start_pose.position.z);
+            WayPoint end_point(end_pose.position.x, end_pose.position.y, end_pose.position.z);
 
             // Calculate Dubins path between the consecutive points
             auto dubins_curve = findShortestPathCurve(start_point, end_point, curvature);
             // Append Dubins curve to the vector
             dubins_curves.push_back(dubins_curve);
         }
+
+        RCLCPP_INFO(get_logger(), "Finished Dubins motion planning [time: %f sec]", get_clock()->now().seconds() - start_time);
 
         // Convert Dubins curves to a sequence of points
         auto dubins_path = generate_path(dubins_curves, header);

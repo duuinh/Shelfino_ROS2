@@ -1,6 +1,6 @@
 #include "a_star.hpp"
 
-AStar::AStar(std::vector<graph_node> borders, std::vector<obstacle> obstacles) {
+AStar::AStar(std::vector<OP_Node> borders, std::vector<Obstacle> obstacles) {
 
     for (auto& border : borders) {
        if (border.x < x_min) {
@@ -28,13 +28,13 @@ AStar::AStar(std::vector<graph_node> borders, std::vector<obstacle> obstacles) {
         for (int iy = 0; iy < y_width; iy++) {
             double y = get_xy_original(iy, y_min);
             for (auto& obstacle : obstacles) {
-                if (obstacle.type == obstacle_type::CYLINDER) {
+                if (obstacle.type == ObstacleType::CYLINDER) {
                     double d = hypot(obstacle.x - x, obstacle.y - y);
                     if (d <= ROBOT_RADIUS + obstacle.radius) {
                         obstacle_map[ix][iy] = true;
                         break;
                     }
-                } else if (obstacle.type == obstacle_type::BOX) {
+                } else if (obstacle.type == ObstacleType::BOX) {
                     double dx = abs(obstacle.x - x);
                     double dy = abs(obstacle.y - y);
                     if (dx <= ROBOT_RADIUS+obstacle.dx/2.0 || dy <= ROBOT_RADIUS+obstacle.dy/2.0) {
@@ -70,7 +70,7 @@ AStar::AStar(std::vector<graph_node> borders, std::vector<obstacle> obstacles) {
     }
 }
 
-ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph_node& target_point) {
+ShortestPath AStar::get_shortest_path(const OP_Node& start_point, const OP_Node& target_point) {
     ShortestPath shortest_path;
 
     AStarNode start_node = AStarNode(get_xy_scaled(start_point.x, x_min), get_xy_scaled(start_point.y, y_min));
@@ -91,12 +91,30 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
         open_set.pop();
         open_set_map.erase(get_node_index(current_node));
 
-        if (current_node == target_point_scaled) {
+        if (current_node.get_distance(target_point_scaled) < 10) {
+            if (current_node != target_point_scaled) {
+                current_node.g += current_node.get_distance(target_point_scaled);
+                current_node.x = target_point_scaled.x;
+                current_node.y = target_point_scaled.y;
+            }
             shortest_path.length = current_node.g*resolution;
 
-            while (current_node.parent_idx != -1) {
-                shortest_path.path.push_back({get_xy_original(current_node.x, x_min), get_xy_original(current_node.y, y_min)});
-                current_node = closed_set.at(current_node.parent_idx);
+            // add last node
+            shortest_path.path.push_back({get_xy_original(current_node.x, x_min), get_xy_original(current_node.y, y_min)});
+            current_node = closed_set.at(current_node.parent_idx);
+
+            while (true) {
+                if (current_node.parent_idx == -1) {
+                    // add first node
+                    shortest_path.path.push_back({get_xy_original(current_node.x, x_min), get_xy_original(current_node.y, y_min)});
+                    break;
+                } else {
+                    AStarNode parent = closed_set.at(current_node.parent_idx);
+                    if (parent.direction != current_node.direction) { // skip same direction
+                        shortest_path.path.push_back({get_xy_original(current_node.x, x_min), get_xy_original(current_node.y, y_min)});
+                    }
+                    current_node = parent;
+                }
             }
             std::reverse(shortest_path.path.begin(), shortest_path.path.end());
             break;
@@ -108,9 +126,13 @@ ShortestPath AStar::get_shortest_path(const graph_node& start_point, const graph
             AStarNode neighbor = AStarNode(current_node.x + direction.dx, 
                                             current_node.y + direction.dy, 
                                             current_node.g + direction.cost,
+                                            direction.type,
                                             get_node_index(current_node));
                                             
             if (closed_set.find(get_node_index(neighbor)) != closed_set.end()) { // in closed set
+                continue;
+            }
+            if (neighbor.x < 0 || neighbor.x > x_width || neighbor.y < 0 || neighbor.y > y_width) {
                 continue;
             }
             if (obstacle_map[neighbor.x][neighbor.y]) {

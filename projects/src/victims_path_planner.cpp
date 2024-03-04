@@ -31,14 +31,14 @@ private:
     bool initial_pose_ready = false;
     bool roadmap_ready = false;
 
-    std::vector<graph_node> borders;
-    std::vector<obstacle> obstacles;
-    std::vector<graph_node> victims;
+    std::vector<OP_Node> borders;
+    std::vector<Obstacle> obstacles;
+    std::vector<OP_Node> victims;
     geometry_msgs::msg::Pose gate_pose;
-    graph_node initial_pose;
+    OP_Node initial_pose;
 
     std::vector<std::vector<double>> distance_matrix;
-    std::vector<std::vector<std::vector<graph_node>>> road_map;
+    std::vector<std::vector<std::vector<OP_Node>>> road_map;
 
     void construct_roadmap();
 
@@ -61,13 +61,13 @@ private:
         {
             if (obstacle.polygon.points.size() == 1) {
               RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f, radius: %.2f, type: cylinder", obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius);
-              this->obstacles.push_back({obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius, 0, 0, obstacle_type::CYLINDER});
+              this->obstacles.push_back({obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius, 0, 0, ObstacleType::CYLINDER});
             } else {
               double x = (obstacle.polygon.points[0].x + obstacle.polygon.points[2].x)/2.0;
               double y = (obstacle.polygon.points[0].y + obstacle.polygon.points[1].y)/2.0;
               double dx = (obstacle.polygon.points[2].x - x)*2;
               double dy = (obstacle.polygon.points[2].y - y)*2;
-              this->obstacles.push_back({x, y, 0, dx, dy, obstacle_type::BOX});
+              this->obstacles.push_back({x, y, 0, dx, dy, ObstacleType::BOX});
             }
             
         }
@@ -188,17 +188,29 @@ public:
     auto start_time = get_clock()->now().seconds();
     RCLCPP_INFO(get_logger(), "Starting mission planning");
     // Brute force
-    std::vector<int> path = find_optimal_path(max_distance, distance_matrix, rewards);
+    std::vector<int> node_indices = find_optimal_path(max_distance, distance_matrix, rewards);
 
     // // Branch and Bound method
     // ILP_Solver solver = ILP_Solver(rewards, road_map, max_distance);
-    // std::vector<int> path = solver.find_optimal_path_BnB();
-
-    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f sec]", get_clock()->now().seconds() - start_time);
+    // std::vector<int> node_indices = solver.find_optimal_path_BnB();
 
     std::stringstream ss;
     ss << "Optimal path: ";
+    for (int i = 0; i < node_indices.size(); ++i) {
+      ss<< node_indices[i]<<", ";
+    }
+    RCLCPP_INFO(get_logger(), ss.str().c_str());
 
+    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f sec]", get_clock()->now().seconds() - start_time);
+
+    // get actual path from roadmap
+    std::vector<OP_Node> path;
+    for (int i = 0; i < node_indices.size()-1; ++i) {
+      std::vector<OP_Node> edge = road_map[i][i+1];
+      path.insert(path.end(), edge.begin(), edge.end());
+    }
+
+    // sending path msg to action client node
     nav_msgs::msg::Path path_msg;
     path_msg.header.stamp = now();
     path_msg.header.frame_id = "map";
@@ -224,21 +236,17 @@ public:
             pose_stamped.pose.orientation.z = 0.0;
             pose_stamped.pose.orientation.w = 1.0;
         } else {
-            pose_stamped.pose.position.x = victims[i-1].x;
-            pose_stamped.pose.position.y = victims[i-1].y;
+            pose_stamped.pose.position.x = path[i].x;
+            pose_stamped.pose.position.y = path[i].y;
             pose_stamped.pose.position.z = 0.0;
             pose_stamped.pose.orientation.x = 0.0;
             pose_stamped.pose.orientation.y = 0.0;
             pose_stamped.pose.orientation.z = 0.0;
             pose_stamped.pose.orientation.w = 1.0;
         }
-
         path_msg.poses.push_back(pose_stamped);
-
-        ss<< path[i]<<", ";
     }
     
-    RCLCPP_INFO(get_logger(), ss.str().c_str(), get_clock()->now().seconds());
     this->path_publisher_->publish(path_msg);
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -257,12 +265,12 @@ void VictimsPathPlannerNode::construct_roadmap() {
     auto start_time = get_clock()->now().seconds();
     RCLCPP_INFO(get_logger(), "Starting roadmap construction");
 
-    std::vector<graph_node> nodes = this->victims;
+    std::vector<OP_Node> nodes = this->victims;
     nodes.insert(nodes.begin(), initial_pose);
     nodes.push_back({gate_pose.position.x, gate_pose.position.y});
 
     distance_matrix.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
-    road_map.resize(nodes.size(), std::vector<std::vector<graph_node>>(nodes.size()));
+    road_map.resize(nodes.size(), std::vector<std::vector<OP_Node>>(nodes.size()));
 
     AStar planner = AStar(borders, obstacles);
     for (size_t i = 0; i < nodes.size(); ++i) {

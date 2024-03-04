@@ -39,11 +39,3 @@ double mod2pi(double angle)
     while(out >= 2*M_PI) out-= 2*M_PI;
     return out;
 }
-
-double modpi(double angle)
-{
-    double out = angle;
-    while(out < -M_PI) out+= 2*M_PI;
-    while(out >= M_PI) out-= 2*M_PI;
-    return out;
-}

@@ -9,8 +9,9 @@
 #include "graph_node_struct.hpp"
 #include "common_defines.h"
 
-struct Motion
-{
+struct Direction
+{   
+    std::string type;
     int dx;
     int dy;
     double cost;
@@ -24,7 +25,7 @@ struct Point
 
 struct ShortestPath
 {
-    std::vector<graph_node> path;
+    std::vector<OP_Node> path;
     double length;
 };
 
@@ -34,11 +35,13 @@ public:
     int y;
     double g; // cost from start node to current node
     int parent_idx;
+    std::string direction;
 
     AStarNode(int x, int y) : x(x), y(y), g(0), parent_idx(-1) {
     }
 
-    AStarNode(int x, int y, double g, int parent_idx) : x(x), y(y), g(g), parent_idx(parent_idx) {
+    AStarNode(int x, int y, double g, std::string direction, int parent_idx) : 
+        x(x), y(y), g(g), direction(direction), parent_idx(parent_idx) {
     }
 
     double getF_score(const Point& goal) const { // total cost (g + h)
@@ -48,12 +51,22 @@ public:
         return g + h;
     }
 
+    double get_distance(const Point& other) {
+        int dx = abs(x - other.x);
+        int dy = abs(y- other.y);
+        return sqrt(dx * dx + dy * dy + 0.0);
+    }
+
     bool operator==(const Point& other) const {
         return x == other.x && y == other.y;
     }
 
     bool operator==(const AStarNode& other) const {
         return x == other.x && y == other.y;
+    }
+
+    bool operator!=(const Point& other) const {
+        return x != other.x && y != other.y;
     }
 
 };
@@ -67,18 +80,18 @@ private:
     double y_max = std::numeric_limits<double>::min();
     double y_min = std::numeric_limits<double>::max();
     double resolution = 0.01;
-    Motion directions[8] = {{1, 0, 1},
-                        {0, 1, 1},
-                        {-1, 0, 1},
-                        {0, -1, 1},
-                        {-1, -1, std::sqrt(2)},
-                        {-1, 1, std::sqrt(2)},
-                        {1, -1, std::sqrt(2)},
-                        {1, 1, std::sqrt(2)}};
+    Direction directions[8] = {{"+x", 10, 0, 10},
+                                {"+y", 0, 10, 10},
+                                {"-x", -10, 0, 10},
+                                {"-y", 0, -10, 10},
+                                {"-x,-y", -10, -10, std::sqrt(200)},
+                                {"-x,+y", -10, 10, std::sqrt(200)},
+                                {"+x,-y", 10, -10, std::sqrt(200)},
+                                {"+x,+y", 10, 10, std::sqrt(200)}};
 
 public:
-    AStar(std::vector<graph_node> borders, std::vector<obstacle> obstacles);
-    ShortestPath get_shortest_path(const graph_node& start_point, const graph_node& target_point);
+    AStar(std::vector<OP_Node> borders, std::vector<Obstacle> Obstacles);
+    ShortestPath get_shortest_path(const OP_Node& start_point, const OP_Node& target_point);
 
 private:
     int get_node_index(AStarNode node);

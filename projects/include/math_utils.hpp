@@ -9,4 +9,3 @@ bool is_integer(const double& value);
 
 double sinc(double t);
 double mod2pi(double angle);
-double modpi(double angle);

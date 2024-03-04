@@ -1,18 +1,18 @@
 #pragma once
 
-enum obstacle_type {
+enum ObstacleType {
   CYLINDER,
   BOX
 };
 
-struct obstacle {
+struct Obstacle {
   double x, y;
   double radius;
   double dx, dy;
-  obstacle_type type;
+  ObstacleType type;
 };
 
-struct graph_node {
+struct OP_Node {
   double x, y;
   double reward = 0.0;
 };
