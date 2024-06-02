@@ -50,8 +50,8 @@ nav_msgs::msg::Path generate_path(std::vector<DubinsCurve> curves, std_msgs::msg
     for (auto curve : curves) {
         auto points = curve.toPointsUniform(0.1);
         for (auto point : points) {
-            pose.pose.position.x = point.xPos;
-            pose.pose.position.y = point.yPos;
+            pose.pose.position.x = point.x;
+            pose.pose.position.y = point.y;
             pose.pose.position.z = 0.0;
             pose.pose.orientation = convert_to_quaternion(0, 0, point.orientation);
             path.poses.push_back(pose);
@@ -197,8 +197,9 @@ class FollowPathActionClient : public rclcpp::Node {
     void plan_callback(nav_msgs::msg::Path::SharedPtr path_msg) {
         std_msgs::msg::Header header;
         header.stamp = this->now();
-        double section_length = 5.0;
-        double curvature = 2.0; // Set your curvature value here
+        double section_length = 20.0;
+        double arc_radius = 0.5;
+        double max_curvature = 1.0/arc_radius;
 
         std::vector<DubinsCurve> dubins_curves;
         std::vector<WayPoint> points;
@@ -216,7 +217,7 @@ class FollowPathActionClient : public rclcpp::Node {
             points.push_back(point);
         }
 
-        dubins_curves = solve_multipoints_dubins(points, curvature);
+        dubins_curves = solve_multipoints_dubins(points, max_curvature);
 
         RCLCPP_INFO(get_logger(), "Finished Dubins motion planning [time: %f sec]", get_clock()->now().seconds() - start_time);
 
