@@ -275,7 +275,7 @@ void VictimsPathPlannerNode::construct_roadmap() {
 
     if (obstacles.size() > 0)
     {
-        PRM prm = PRM(6, obstacles, borders);
+        PRM prm = PRM(obstacles, borders);
         for (size_t i = 0; i < nodes.size(); ++i)
         {
             for (size_t j = 0; j < nodes.size(); ++j)
