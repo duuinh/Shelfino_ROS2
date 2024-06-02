@@ -8,11 +8,11 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "common_struct.hpp"
 #include "ilp_solver.hpp"
-#include "common_defines.h"
+#include "common_defines.hpp"
 #include "utils.h"
 #include "nav_msgs/msg/path.hpp"
 #include "orienteering_solver.hpp"
-#include "a_star.hpp"
+#include "prm.hpp"
 
 class VictimsPathPlannerNode: public rclcpp_lifecycle::LifecycleNode
 {
@@ -31,14 +31,14 @@ private:
     bool initial_pose_ready = false;
     bool roadmap_ready = false;
 
-    std::vector<OP_Node> borders;
+    std::vector<GraphNode> borders;
     std::vector<Obstacle> obstacles;
-    std::vector<OP_Node> victims;
+    std::vector<GraphNode> victims;
     geometry_msgs::msg::Pose gate_pose;
-    OP_Node initial_pose;
+    geometry_msgs::msg::Pose initial_pose;
 
     std::vector<std::vector<double>> distance_matrix;
-    std::vector<std::vector<std::vector<OP_Node>>> road_map;
+    std::vector<std::vector<std::vector<GraphNode>>> road_map;
 
     void construct_roadmap();
 
@@ -102,7 +102,7 @@ private:
     void initial_pose_callback(const geometry_msgs::msg::PoseWithCovarianceStamped::SharedPtr msg)
     {
         RCLCPP_INFO(get_logger(), "Received intial pose =>  x: %.2f, y: %.2f", msg->pose.pose.position.x, msg->pose.pose.position.y);
-        this->initial_pose ={msg->pose.pose.position.x, msg->pose.pose.position.y, 0.0};
+        this->initial_pose = msg->pose.pose;
         this->initial_pose_ready = true;
         this->activate_wrapper();
     }
@@ -187,6 +187,7 @@ public:
 
     auto start_time = get_clock()->now().seconds();
     RCLCPP_INFO(get_logger(), "Starting mission planning");
+
     // Brute force
     std::vector<int> node_indices = find_optimal_path(max_distance, distance_matrix, rewards);
 
@@ -204,10 +205,10 @@ public:
     RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f sec]", get_clock()->now().seconds() - start_time);
 
     // get actual path from roadmap
-    std::vector<OP_Node> path;
+    std::vector<GraphNode> path;
     for (int i = 0; i < node_indices.size()-1; ++i) {
-      std::vector<OP_Node> edge = road_map[i][i+1];
-      path.insert(path.end(), edge.begin(), edge.end());
+      std::vector<GraphNode> edge = road_map[node_indices.at(i)][node_indices.at(i+1)];
+      path.insert(path.end(), edge.begin(), edge.end()-1);
     }
 
     // sending path msg to action client node
@@ -215,12 +216,12 @@ public:
     path_msg.header.stamp = now();
     path_msg.header.frame_id = "map";
 
-    for (int i = 0; i < path.size(); ++i) {   
+    for (int i = 0; i < path.size() + 1; ++i) {   
         geometry_msgs::msg::PoseStamped pose_stamped;
         pose_stamped.header.stamp = now();
         pose_stamped.header.frame_id = "map";
 
-        if (i == path.size() - 1) {
+        if (i == path.size()) {
             pose_stamped.pose.position.x = gate_pose.position.x;
             pose_stamped.pose.position.y = gate_pose.position.y;
             pose_stamped.pose.position.z = gate_pose.position.z;
@@ -229,12 +230,12 @@ public:
             pose_stamped.pose.orientation.z = gate_pose.orientation.z;
             pose_stamped.pose.orientation.w = gate_pose.orientation.w;
         } else if (i == 0) {
-            pose_stamped.pose.position.x = initial_pose.x;
-            pose_stamped.pose.position.y = initial_pose.y;
-            pose_stamped.pose.orientation.x = 0.0;
-            pose_stamped.pose.orientation.y = 0.0;
-            pose_stamped.pose.orientation.z = 0.0;
-            pose_stamped.pose.orientation.w = 1.0;
+            pose_stamped.pose.position.x = initial_pose.position.x;
+            pose_stamped.pose.position.y = initial_pose.position.y;
+            pose_stamped.pose.orientation.x = initial_pose.orientation.x;
+            pose_stamped.pose.orientation.y = initial_pose.orientation.y;
+            pose_stamped.pose.orientation.z = initial_pose.orientation.z;
+            pose_stamped.pose.orientation.w = initial_pose.orientation.w;
         } else {
             pose_stamped.pose.position.x = path[i].x;
             pose_stamped.pose.position.y = path[i].y;
@@ -265,23 +266,43 @@ void VictimsPathPlannerNode::construct_roadmap() {
     auto start_time = get_clock()->now().seconds();
     RCLCPP_INFO(get_logger(), "Starting roadmap construction");
 
-    std::vector<OP_Node> nodes = this->victims;
-    nodes.insert(nodes.begin(), initial_pose);
+    std::vector<GraphNode> nodes = this->victims;
+    nodes.insert(nodes.begin(), {initial_pose.position.x, initial_pose.position.y});
     nodes.push_back({gate_pose.position.x, gate_pose.position.y});
 
     distance_matrix.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
-    road_map.resize(nodes.size(), std::vector<std::vector<OP_Node>>(nodes.size()));
+    road_map.resize(nodes.size(), std::vector<std::vector<GraphNode>>(nodes.size()));
 
-    AStar planner = AStar(borders, obstacles);
-    for (size_t i = 0; i < nodes.size(); ++i) {
-      for (size_t j = 0; j < nodes.size(); ++j) {
-          if (i != j) {
-            ShortestPath shortest_path = planner.get_shortest_path(nodes[i],nodes[j]);
-            distance_matrix[i][j] = shortest_path.length;
-            road_map[i][j] = shortest_path.path;
-          }
-      }
+    if (obstacles.size() > 0)
+    {
+        PRM prm = PRM(6, obstacles, borders);
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            for (size_t j = 0; j < nodes.size(); ++j)
+            {
+                if (i != j)
+                {
+                    RCLCPP_INFO(get_logger(), "find_shortest_path");
+                    ShortestPath shortest_path = prm.find_shortest_path({nodes[i].x, nodes[i].y}, {nodes[j].x, nodes[j].y});
+                    distance_matrix[i][j] = shortest_path.length;
+                    road_map[i][j] = shortest_path.path;
+                }
+            }
+        }
+    } else {
+        for (size_t i = 0; i < nodes.size(); ++i)
+        {
+            for (size_t j = 0; j < nodes.size(); ++j)
+            {
+                if (i != j)
+                {
+                    distance_matrix[i][j] = distance({nodes[i].x, nodes[i].y}, {nodes[j].x, nodes[j].y});
+                    road_map[i][j] = {nodes[i], nodes[j]};
+                }
+            }
+        }
     }
+
 
     RCLCPP_INFO(get_logger(), "Finished roadmap construction [time: %f sec]", get_clock()->now().seconds()-start_time);
 

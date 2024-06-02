@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 enum ObstacleType {
   CYLINDER,
@@ -12,7 +13,19 @@ struct Obstacle {
   ObstacleType type;
 };
 
-struct OP_Node {
+struct GraphNode {
   double x, y;
   double reward = 0.0;
+};
+
+struct Point
+{
+    double x;
+    double y;
+};
+
+struct ShortestPath
+{
+    std::vector<GraphNode> path;
+    double length;
 };

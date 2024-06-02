@@ -5,11 +5,12 @@
 #include <iostream>
 #include <cmath>
 
-#define M               -10000                  // big M value (-M for Max. problem)
-#define MAX_ITERATE     100
+
+#define M_VALUE               -10000            // big M value (-M for Max. problem)
 
 class Simplex {
    private:
+    int MAX_ITERATE = 100;
     std::vector<std::vector<double>> a_mat_;    // coeff. matrix of constraints
     std::vector<double>b_vec_;                  // column vector on the right hand side of constraints
     std::vector<double> c_vec_;                 // coeff. vector of cost function

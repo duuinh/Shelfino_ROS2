@@ -192,8 +192,8 @@ void ILP_Solver::add_slack_variables_simplex() {
     c_vec_.insert(c_vec_.end(), zero_vec.begin(), zero_vec.end());
     // add big M to the constraints identified as =
     if (use_big_M_) {
-        c_vec_[(n_nodes_ * n_nodes_) + (n_nodes_ * n_nodes_)] = M;
-        // c_vec_[(n_nodes_ * n_nodes_) + (n_nodes_ * n_nodes_) +1] = M;
+        c_vec_[(n_nodes_ * n_nodes_) + (n_nodes_ * n_nodes_)] = M_VALUE;
+        // c_vec_[(n_nodes_ * n_nodes_) + (n_nodes_ * n_nodes_) +1] = M_VALUE;
     }
 }
 
@@ -269,7 +269,7 @@ BnB_Node ILP_Solver::modify_constraint(int i, int new_value,
     new_node.b[i] = new_value;
     // add big M
     if (use_big_M_) {
-        new_node.c[n_nodes_ * n_nodes_ + i] = M;
+        new_node.c[n_nodes_ * n_nodes_ + i] = M_VALUE;
     }
     return new_node;
 }

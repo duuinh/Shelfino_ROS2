@@ -22,7 +22,7 @@ std::vector<double> Simplex::solve() {
         int c_idx = n_squared + i;
         basis_[i] = c_idx;
         cB_[i] = c_vec_[c_idx];
-        if (c_vec_[c_idx] ==  M) {
+        if (c_vec_[c_idx] ==  M_VALUE) {
             big_M_index.push_back(c_idx);
         }
     }
