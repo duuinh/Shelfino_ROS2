@@ -1,6 +1,6 @@
 #include "prm.hpp"
 
-PRM::PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders)
+PRM::PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders, std::vector<GraphNode> victims)
 {
     obstacles_ = obstacles;
     double x_max = std::numeric_limits<double>::min();
@@ -28,21 +28,29 @@ PRM::PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders)
         }
     }
 
-    // sample nodes
-    while ( roadmap.nodes.size() < n_samples)
+    if (obstacles.size() > 0)
     {
-        Point new_point = generate_new_point(x_min, x_max, y_min, y_max);
-        if (is_in_free_space(new_point, borders))
+        // sample nodes
+        while (roadmap.nodes.size() < n_samples)
         {
-            roadmap.nodes.push_back(new_point);
+            Point new_point = generate_new_point(x_min, x_max, y_min, y_max);
+            if (is_in_free_space(new_point, borders))
+            {
+                roadmap.nodes.push_back(new_point);
+            }
         }
+    } 
+
+    for (GraphNode &victim : victims)
+    {
+        roadmap.nodes.push_back({victim.x, victim.y});
     }
 
     // construct a roadmap by finding k nearest neighbors for each node
 
     roadmap.graph.resize(roadmap.nodes.size());
 
-    for (int i = 0; i < roadmap.nodes.size(); ++i)
+    for (size_t i = 0; i < roadmap.nodes.size(); ++i)
     {
         connect_to_neighbors(i);
     }
