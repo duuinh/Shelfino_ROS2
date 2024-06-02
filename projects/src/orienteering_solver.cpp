@@ -36,10 +36,16 @@ std::vector<int> find_optimal_path(double max_distance, std::vector<std::vector<
         path.push_back(n_nodes_-1);
         total_distance += distance_matrix[current_node][n_nodes_-1];
         
-        if (total_reward > best_path_reward) {
-            best_path = path;
-            best_path_reward = total_reward;
-            best_path_distance = total_distance;
+        if (total_reward >= best_path_reward) {
+            if (total_reward == best_path_reward && total_distance < best_path_distance) {
+                best_path = path;
+                best_path_reward = total_reward;
+                best_path_distance = total_distance;
+            } else {
+                best_path = path;
+                best_path_reward = total_reward;
+                best_path_distance = total_distance;
+            }
         }
     }
     

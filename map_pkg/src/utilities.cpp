@@ -121,12 +121,12 @@ bool is_inside_map(obstacle obs, std::string map, double dx, double dy){
   }
   else if (map == "hexagon"){
     std::vector<h2d::Point2d> vertexes;
-    vertexes.push_back(h2d::Point2d(            0.0, -dx));
-    vertexes.push_back(h2d::Point2d(-sqrt(3)/2.0*dx, -dx/2.0));
-    vertexes.push_back(h2d::Point2d(-sqrt(3)/2.0*dx,  dx/2.0));
-    vertexes.push_back(h2d::Point2d(            0.0,  dx));
-    vertexes.push_back(h2d::Point2d( sqrt(3)/2.0*dx,  dx/2.0));
-    vertexes.push_back(h2d::Point2d( sqrt(3)/2.0*dx, -dx/2.0));
+    vertexes.push_back(h2d::Point2d(    -dx,             0.0));
+    vertexes.push_back(h2d::Point2d(-dx/2.0, -dx*sqrt(3)/2.0));
+    vertexes.push_back(h2d::Point2d( dx/2.0, -dx*sqrt(3)/2.0));
+    vertexes.push_back(h2d::Point2d(     dx,             0.0));
+    vertexes.push_back(h2d::Point2d( dx/2.0,  dx*sqrt(3)/2.0));
+    vertexes.push_back(h2d::Point2d(-dx/2.0,  dx*sqrt(3)/2.0));
     map_poly = h2d::CPolyline(vertexes);
   }
   else{
