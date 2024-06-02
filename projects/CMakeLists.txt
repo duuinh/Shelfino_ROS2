@@ -24,7 +24,7 @@ install(DIRECTORY
 
 set(NODES
   victims_path_planner
-  FollowPath_action_client
+  follow_path_action_client
 )
 
 add_library(${PROJECT_NAME}_lib SHARED

@@ -231,7 +231,7 @@ class FollowPathActionClient : public rclcpp::Node {
     }
 
    public:
-    explicit FollowPathActionClient() : Node("FollowPath_action_client") {
+    explicit FollowPathActionClient() : Node("follow_path_action_client") {
 
         // Get shelfino ID parameter
         this->declare_parameter("shelfino_id", 0);
