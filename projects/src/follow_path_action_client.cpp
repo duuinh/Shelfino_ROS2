@@ -126,6 +126,7 @@ class FollowPathActionClient : public rclcpp::Node {
         goal_msg.path.header.stamp = this->now();
         goal_msg.path.header.frame_id = "map";
         goal_msg.controller_id = "FollowPath";
+        goal_msg.goal_checker_id = "goal_checker";
 
         auto send_goal_options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
         send_goal_options.goal_response_callback =
