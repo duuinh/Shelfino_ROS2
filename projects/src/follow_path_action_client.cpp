@@ -29,8 +29,16 @@ geometry_msgs::msg::Quaternion convert_to_quaternion(double pitch, double roll, 
     return q_msg;
 }
 
+double get_yaw_angle(geometry_msgs::msg::Quaternion q_msg) {
+    double siny_cosp = 2 * (q_msg.w * q_msg.z + q_msg.x * q_msg.y);
+    double cosy_cosp = 1 - 2 * (q_msg.y * q_msg.y + q_msg.z * q_msg.z);
+    double yaw = atan2(siny_cosp, cosy_cosp);
+
+    return yaw;
+}
+
 // Function to generate a path from Dubins curves
-nav_msgs::msg::Path generate_path(std::vector<PathCurve> curves, std_msgs::msg::Header header) {
+nav_msgs::msg::Path generate_path(std::vector<DubinsCurve> curves, std_msgs::msg::Header header) {
     nav_msgs::msg::Path path;
     path.header = header;
     path.header.frame_id = "map";
@@ -42,8 +50,8 @@ nav_msgs::msg::Path generate_path(std::vector<PathCurve> curves, std_msgs::msg::
     for (auto curve : curves) {
         auto points = curve.toPointsUniform(0.1);
         for (auto point : points) {
-            pose.pose.position.x = point.xPos;
-            pose.pose.position.y = point.yPos;
+            pose.pose.position.x = point.x;
+            pose.pose.position.y = point.y;
             pose.pose.position.z = 0.0;
             pose.pose.orientation = convert_to_quaternion(0, 0, point.orientation);
             path.poses.push_back(pose);
@@ -118,6 +126,7 @@ class FollowPathActionClient : public rclcpp::Node {
         goal_msg.path.header.stamp = this->now();
         goal_msg.path.header.frame_id = "map";
         goal_msg.controller_id = "FollowPath";
+        goal_msg.goal_checker_id = "goal_checker";
 
         auto send_goal_options = rclcpp_action::Client<FollowPath>::SendGoalOptions();
         send_goal_options.goal_response_callback =
@@ -189,38 +198,41 @@ class FollowPathActionClient : public rclcpp::Node {
     void plan_callback(nav_msgs::msg::Path::SharedPtr path_msg) {
         std_msgs::msg::Header header;
         header.stamp = this->now();
-        double section_length = 5.0;
-        double curvature = 0.2; // Set your curvature value here
+        double section_length = 20.0;
+        double arc_radius = 0.5;
+        double max_curvature = 1.0/arc_radius;
 
-        std::vector<PathCurve> dubins_curves;
+        std::vector<DubinsCurve> dubins_curves;
+        std::vector<WayPoint> points;
+
+        auto start_time = get_clock()->now().seconds();
+        RCLCPP_INFO(get_logger(), "Starting Dubins motion planning");
+        RCLCPP_INFO(get_logger(), std::to_string(path_msg->poses.size()).c_str());
 
         // Iterate over pairs of consecutive points from the received path
-        for (size_t i = 0; i < path_msg->poses.size() - 1; ++i)
-        {
-            // Get start and end points for the Dubins path calculation
-            const auto &start_pose = path_msg->poses[i].pose;
-            const auto &end_pose = path_msg->poses[i + 1].pose;
+        for (size_t i = 0; i < path_msg->poses.size(); ++i) {
+            const auto &pose = path_msg->poses[i].pose;
+            double orientation = get_yaw_angle(pose.orientation);
+            WayPoint point(pose.position.x, pose.position.y, orientation);
 
-            PathPoint start_point(start_pose.position.x, start_pose.position.y, start_pose.position.z);
-            PathPoint end_point(end_pose.position.x, end_pose.position.y, end_pose.position.z);
-
-            // Calculate Dubins path between the consecutive points
-            auto dubins_curve = findShortestPathCurve(start_point, end_point, curvature);
-            // Append Dubins curve to the vector
-            dubins_curves.push_back(dubins_curve);
+            points.push_back(point);
         }
 
+        dubins_curves = solve_multipoints_dubins(points, max_curvature);
+
+        RCLCPP_INFO(get_logger(), "Finished Dubins motion planning [time: %f sec]", get_clock()->now().seconds() - start_time);
+
         // Convert Dubins curves to a sequence of points
-        auto dubins_path = generate_path(dubins_curves, header);
+        auto dubins_points = generate_path(dubins_curves, header);
 
         // Split the Dubins path into smaller sections
-        this->sections = split_path(dubins_path, section_length); 
+        this->sections = split_path(dubins_points, section_length); 
 
         this->publish_path(this->sections[section_cnt]);
     }
 
    public:
-    explicit FollowPathActionClient() : Node("FollowPath_action_client") {
+    explicit FollowPathActionClient() : Node("follow_path_action_client") {
 
         // Get shelfino ID parameter
         this->declare_parameter("shelfino_id", 0);

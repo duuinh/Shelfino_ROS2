@@ -241,13 +241,13 @@ def generate_launch_description():
         parameters=[{'shelfino_id': shelfino_id}]
     )
 
-    FollowPath_action_client_node = Node (
+    follow_path_action_client_node = Node (
         package='projects',
-        executable='FollowPath_action_client',
-        name='FollowPath_action_client',
+        executable='follow_path_action_client',
+        name='follow_path_action_client',
         output='screen',
         parameters=[{'shelfino_id': shelfino_id}, {'use_sim_time': use_sim_time}]
     )
     ld.add_action(victims_path_planner_node)
-    ld.add_action(FollowPath_action_client_node)
+    ld.add_action(follow_path_action_client_node)
     return ld

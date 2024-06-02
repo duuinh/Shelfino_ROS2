@@ -27,97 +27,78 @@ enum ArcDirection {
     RightTurn = -1
 };
 
-class PathPoint {
+class WayPoint {
 public:
-    double xPos;
-    double yPos;
+    double x;
+    double y;
     double orientation;
 
-    PathPoint() : xPos{0}, yPos{0}, orientation{0} {}
-    PathPoint(double xPos, double yPos, double orientation) : xPos{xPos}, yPos{yPos}, orientation{orientation} {}
-    PathPoint(Point2D position, double orientation) : xPos{position.x}, yPos{position.y}, orientation{orientation} {}
+    WayPoint() : x{0}, y{0}, orientation{0} {}
+    WayPoint(double x, double y, double orientation) : x{x}, y{y}, orientation{orientation} {}
+    WayPoint(Point2D position, double orientation) : x{position.x}, y{position.y}, orientation{orientation} {}
 
-    Point2D getPosition() const { return Point2D(xPos, yPos); }
+    Point2D getPosition() const { return Point2D(x, y); }
 
-    friend bool operator==(const PathPoint& lhs, const PathPoint& rhs) {
-        return lhs.xPos == rhs.xPos && lhs.yPos == rhs.yPos && lhs.orientation <= rhs.orientation * 1.03 && lhs.orientation >= rhs.orientation * 0.97;
+    friend bool operator==(const WayPoint& lhs, const WayPoint& rhs) {
+        return lhs.x == rhs.x && lhs.y == rhs.y && lhs.orientation <= rhs.orientation * 1.03 && lhs.orientation >= rhs.orientation * 0.97;
     }
 };
-std::string operator+(std::string s, const PathPoint& point);
+std::string operator+(std::string s, const WayPoint& point);
 
-class PathArc {
+class DubinsArc {
 public:
-    PathPoint startPoint;
+    WayPoint startPoint;
     double arcLength;
     double curvature;
 
-    PathArc() : startPoint{PathPoint()}, arcLength{0}, curvature{0} {};
-    PathArc(PathPoint startPoint, double arcLength, double curvature) : startPoint{startPoint}, arcLength{arcLength}, curvature{curvature} {}
+    DubinsArc() : startPoint{WayPoint()}, arcLength{0}, curvature{0} {};
+    DubinsArc(WayPoint startPoint, double arcLength, double curvature) : startPoint{startPoint}, arcLength{arcLength}, curvature{curvature} {}
 
-    PathPoint getDestination() const;
-    std::vector<PathPoint> toPoints(int pointCount) const;
-    std::vector<PathPoint> toPointsUniform(double spacing) const;
+    WayPoint getDestination() const;
+    std::vector<WayPoint> toPoints(int pointCount) const;
+    std::vector<WayPoint> toPointsUniform(double spacing) const;
 };
-std::string operator+(std::string s, const PathArc& arc);
+std::string operator+(std::string s, const DubinsArc& arc);
 
-class PathCurve {
+class DubinsCurve {
 public:
-    std::vector<PathArc> arcs;
+    std::vector<DubinsArc> arcs;
 
-    PathCurve() : arcs{PathArc(), PathArc(), PathArc()} {}
-    PathCurve(PathArc arc1, PathArc arc2, PathArc arc3) : arcs{arc1, arc2, arc3} {}
+    DubinsCurve() : arcs{DubinsArc(), DubinsArc(), DubinsArc()} {}
+    DubinsCurve(DubinsArc arc1, DubinsArc arc2, DubinsArc arc3) : arcs{arc1, arc2, arc3} {}
 
-    double getLength() const {
+    double get_length() const {
         double totalLength = 0;
         for (const auto& arc : arcs) totalLength += arc.arcLength;
         return totalLength;
     }
 
-    std::vector<PathPoint> toPoints(int pointCount) const;
+    std::vector<WayPoint> toPoints(int pointCount) const;
     /**
      * Converts the Dubins path to a vector of uniformly spaced points.
      *
      * @param spacing The spacing between consecutive points.
-     * @return A vector of PathPoint objects representing the uniformly spaced points.
+     * @return A vector of WayPoint objects representing the uniformly spaced points.
      */
-    std::vector<PathPoint> toPointsUniform(double spacing) const;
+    std::vector<WayPoint> toPointsUniform(double spacing) const;
 };
-std::string operator+(std::string s, const PathCurve& curve);
+std::string operator+(std::string s, const DubinsCurve& curve);
 
-class PathConnection {
-private:
-    PathPoint sourcePoint, destinationPoint;
-    PathCurve path;
-    bool isEmpty;
-public:
-    PathConnection() : isEmpty{true} {}
-    PathConnection(PathPoint sourcePoint, PathPoint destinationPoint, PathCurve path) : sourcePoint{sourcePoint}, destinationPoint{destinationPoint}, path{path}, isEmpty{false} {}
 
-    PathPoint getSource() const { return sourcePoint; }
-    PathPoint getDestination() const { return destinationPoint; }
-    PathCurve getPath() const { return path; }
-    bool isEmptyConnection() const { return isEmpty; }
-    std::string toJson(double precision) const;
-};
-
-struct PathPrimitive {
+struct PrimitiveResult {
     bool isValid;
     double firstArcLength, secondArcLength, thirdArcLength;
 };
 
-PathCurve calculateShortestPath(PathPoint start, PathPoint end, double curvature);
-std::vector<PathCurve> generatePathCurves(PathPoint start, PathPoint end, double curvature);
-bool checkIntersection(PathCurve path, Polygon polygon);
-bool checkIntersection(PathCurve path, Segment2D segment);
-bool checkIntersection(PathCurve path, Polygon polygon, int precision);
-bool checkIntersectionWithSides(PathCurve path, Polygon polygon);
+DubinsCurve calculateShortestPath(WayPoint start, WayPoint end, double curvature);
+bool checkIntersection(DubinsCurve path, Polygon polygon);
+bool checkIntersection(DubinsCurve path, Segment2D segment);
+bool checkIntersection(DubinsCurve path, Polygon polygon, int precision);
+bool checkIntersectionWithSides(DubinsCurve path, Polygon polygon);
 
-PathPrimitive calculatePathPrimitive(CurveType curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax);
-PathCurve findShortestPathCurve(PathPoint startPoint, PathPoint endPoint, const double curvature);
-bool checkPathArcIntersection(PathArc arc, Segment2D segment);
-void sortPathCurvesByLength(std::vector<PathCurve>& curves);
+PrimitiveResult calc_primitive_result(CurveType curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax);
+DubinsCurve find_shortest_curve(WayPoint startPoint, WayPoint endPoint, const double curvature);
+bool checkDubinsArcIntersection(DubinsArc arc, Segment2D segment);
 
-std::string operator+(std::string s, const PathPoint& point);
-std::string operator+(std::string s, const PathArc& arc);
-std::string operator+(std::string s, const PathCurve& curve);
+std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double curvature);
 #endif

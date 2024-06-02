@@ -18,6 +18,9 @@
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "obstacles_msgs/msg/obstacle_array_msg.hpp"
 #include "obstacles_msgs/msg/obstacle_msg.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
+
 #include "std_msgs/msg/header.hpp"
 
 #include "gazebo_msgs/srv/spawn_entity.hpp"
@@ -32,6 +35,7 @@ class VictimPublisher : public rclcpp_lifecycle::LifecycleNode
 private:
   rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom);
   rclcpp::Publisher<obstacles_msgs::msg::ObstacleArrayMsg>::SharedPtr publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
   rclcpp::Client<gazebo_msgs::srv::SpawnEntity>::SharedPtr spawner_;
   rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>::SharedPtr obstacles_tran_sub_;
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr gate_sub_;
@@ -108,6 +112,8 @@ public:
     }
 
     this->publisher_ = this->create_publisher<obstacles_msgs::msg::ObstacleArrayMsg>("/victims", this->qos);
+    this->marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/markers/victims", this->qos);
+
     this->obstacles_tran_sub_ = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
       "/send_obstacles/transition_event", 10, 
       std::bind(&VictimPublisher::on_obstacles_transition_event, this, std::placeholders::_1)
@@ -252,9 +258,11 @@ std::vector<obstacle> VictimPublisher::rand_victims()
 void VictimPublisher::spawn_and_publish_victims(const std::vector<obstacle>& victims) 
 {
   obstacles_msgs::msg::ObstacleArrayMsg msg;
+  visualization_msgs::msg::MarkerArray markers;
   std_msgs::msg::Header hh;
   hh.stamp = this->get_clock()->now();
   hh.frame_id = "map";
+  int vict_id = 0;
   
   std::random_device rd;
   std::mt19937 gen(rd());
@@ -300,9 +308,45 @@ void VictimPublisher::spawn_and_publish_victims(const std::vector<obstacle>& vic
     pose.orientation.w = 0;
   
     spawn_model(this->get_node_base_interface(), this->spawner_, xml_string, pose, "victim");
+
+    // markers for rviz
+    visualization_msgs::msg::Marker pos_marker;
+    pos_marker.header = hh;
+    pos_marker.ns = "victims";
+    pos_marker.id = vict_id;
+    pos_marker.action = visualization_msgs::msg::Marker::ADD;
+    pos_marker.type = visualization_msgs::msg::Marker::CYLINDER;
+    pos_marker.pose = pose;
+    pos_marker.scale.x = obs.radius/this->data.max_weight;
+    pos_marker.scale.y = obs.radius/this->data.max_weight;
+    pos_marker.scale.z = 0.1;
+    pos_marker.color.a = 1.0;
+    pos_marker.color.r = 0.0;
+    pos_marker.color.g = 0.0;
+    pos_marker.color.b = 1.0;
+    markers.markers.push_back(pos_marker);
+
+    visualization_msgs::msg::Marker weight_marker;
+    weight_marker.header = hh;
+    weight_marker.ns = "victims_weight";
+    weight_marker.id = vict_id;
+    weight_marker.action = visualization_msgs::msg::Marker::ADD;
+    weight_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
+    weight_marker.pose = pose;
+    weight_marker.scale.z = 0.2;
+    // white color
+    weight_marker.color.a = 1.0;
+    weight_marker.color.r = 1.0;
+    weight_marker.color.g = 1.0;
+    weight_marker.color.b = 1.0;
+    weight_marker.text = std::to_string((int) std::round(obs.radius)); // value
+    markers.markers.push_back(weight_marker);
+
+    vict_id++;
   }
 
   this->publisher_->publish(msg);
+  this->marker_publisher_->publish(markers);
 }
 
 int main(int argc, char * argv[])

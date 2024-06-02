@@ -24,7 +24,7 @@ install(DIRECTORY
 
 set(NODES
   victims_path_planner
-  FollowPath_action_client
+  follow_path_action_client
 )
 
 add_library(${PROJECT_NAME}_lib SHARED
@@ -34,7 +34,7 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/dubins.cpp
   src/shapes.cpp
   src/orienteering_solver.cpp
-  src/a_star.cpp
+  src/prm.cpp
 )
 
 target_include_directories(${PROJECT_NAME}_lib PUBLIC
@@ -52,7 +52,7 @@ foreach(NODE ${NODES})
     src/math_utils.cpp 
     src/dubins.cpp 
     src/shapes.cpp 
-    src/a_star.cpp
+    src/prm.cpp
     src/orienteering_solver.cpp)
 
   target_include_directories(${NODE} PUBLIC

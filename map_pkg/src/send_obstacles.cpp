@@ -18,6 +18,9 @@
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "obstacles_msgs/msg/obstacle_array_msg.hpp"
 #include "obstacles_msgs/msg/obstacle_msg.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
+
 #include "std_msgs/msg/header.hpp"
 
 #include "gazebo_msgs/srv/spawn_entity.hpp"
@@ -33,6 +36,7 @@ class ObstaclesPublisher : public rclcpp_lifecycle::LifecycleNode
 private:
   rclcpp::QoS qos = rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom);
   rclcpp::Publisher<obstacles_msgs::msg::ObstacleArrayMsg>::SharedPtr publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
   rclcpp::Client<gazebo_msgs::srv::SpawnEntity>::SharedPtr spawner_;
   rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>::SharedPtr borders_tran_sub_;
   rclcpp::Subscription<lifecycle_msgs::msg::TransitionEvent>::SharedPtr gates_tran_sub_;
@@ -115,6 +119,7 @@ public:
 
     this->spawner_ = this->create_client<gazebo_msgs::srv::SpawnEntity>("/spawn_entity");
     this->publisher_ = this->create_publisher<obstacles_msgs::msg::ObstacleArrayMsg>("/obstacles", qos);
+    this->marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/markers/obstacles", this->qos);
 
     this->borders_tran_sub_ = this->create_subscription<lifecycle_msgs::msg::TransitionEvent>(
       "/send_borders/transition_event", 10,
@@ -270,9 +275,11 @@ std::vector<obstacle> ObstaclesPublisher::rand_obstacles()
 void ObstaclesPublisher::spawn_and_publish_obstacles(std::vector<obstacle>& obstacles)
 {
   obstacles_msgs::msg::ObstacleArrayMsg msg;
+  visualization_msgs::msg::MarkerArray markers;
   std_msgs::msg::Header hh;
   hh.stamp = this->get_clock()->now();
   hh.frame_id = "map";
+  int obs_id = 0; //for marker id
 
   for (auto o : obstacles) {
     RCLCPP_INFO(this->get_logger(), "Publishing obstacle: %s x=%f, y=%f, radius=%f, dx=%f, dy=%f", 
@@ -355,10 +362,36 @@ void ObstaclesPublisher::spawn_and_publish_obstacles(std::vector<obstacle>& obst
 
     spawn_model(this->get_node_base_interface(), this->spawner_, xml_string, pose);
 
+    // create marker msg for Rviz
+    visualization_msgs::msg::Marker marker;
+    marker.header = hh;
+    marker.ns = "obstacles";
+    marker.id = obs_id;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    if (o.type == obstacle_type::BOX) {
+      marker.type = visualization_msgs::msg::Marker::CUBE;
+      marker.scale.x = o.dx;
+      marker.scale.y = o.dy;
+    } else {
+      marker.type = visualization_msgs::msg::Marker::CYLINDER;
+      marker.scale.x = o.radius;
+      marker.scale.y = o.radius;
+    }
+    marker.pose = pose;
+    marker.scale.z = 1.0;
+    marker.color.a = 0.7;
+    marker.color.r = 0.0;
+    marker.color.g = 1.0;
+    marker.color.b = 0.0;
+
+    markers.markers.push_back(marker);
+    obs_id++;
+
     // sleep(0.5);
   }
 
   this->publisher_->publish(msg);
+  this->marker_publisher_->publish(markers);
 }
 
 void ObstaclesPublisher::rand_cylinder(obstacle& obs, std::vector<obstacle>& obstacles, rclcpp::Time& startTime, std::mt19937& gen){

@@ -18,6 +18,7 @@ find_package(gazebo_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(lifecycle_msgs REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 install(DIRECTORY launch models config
   DESTINATION share/${PROJECT_NAME}
@@ -51,6 +52,7 @@ ament_target_dependencies(
   "tf2"
   "lifecycle_msgs"
   "rclcpp_lifecycle"
+  "visualization_msgs"
 )
 
 # build nodes
@@ -74,6 +76,7 @@ foreach(NODE ${NODES})
     "tf2"
     "lifecycle_msgs"
     "rclcpp_lifecycle"
+    "visualization_msgs"
   )
 
   install(TARGETS ${NODE}
@@ -105,6 +108,7 @@ if(BUILD_TESTING)
     "std_msgs"
     "gazebo_msgs"
     "obstacles_msgs"
+    "visualization_msgs"
   )
   
   target_link_libraries(${PROJECT_NAME}_tests ${PROJECT_NAME}_lib)

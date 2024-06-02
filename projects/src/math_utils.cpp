@@ -40,10 +40,6 @@ double mod2pi(double angle)
     return out;
 }
 
-double modpi(double angle)
-{
-    double out = angle;
-    while(out < -M_PI) out+= 2*M_PI;
-    while(out >= M_PI) out-= 2*M_PI;
-    return out;
+double distance(const Point& a, const Point& b) {
+    return std::sqrt(std::pow(a.x - b.x, 2) + std::pow(a.y - b.y, 2));
 }

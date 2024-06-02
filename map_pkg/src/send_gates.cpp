@@ -10,11 +10,13 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/lifecycle_node.hpp"
-#include "lifecycle_msgs/msg/transition_event.hpp"
 
+#include "lifecycle_msgs/msg/transition_event.hpp"
 #include "std_msgs/msg/header.hpp"
 #include "geometry_msgs/msg/pose_array.hpp"
 #include "geometry_msgs/msg/pose.hpp"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 #include "ament_index_cpp/get_package_share_directory.hpp"
 
@@ -28,6 +30,7 @@ class GatesPublisher : public rclcpp_lifecycle::LifecycleNode
 {
 private:
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
   rclcpp::Client<gazebo_msgs::srv::SpawnEntity>::SharedPtr spawner_;
   std::string share_dir;
 
@@ -76,6 +79,7 @@ public:
     
     this->publisher_ = this->create_publisher<geometry_msgs::msg::PoseArray>("/gate_position", qos);
     this->spawner_ = this->create_client<gazebo_msgs::srv::SpawnEntity>("/spawn_entity");
+    this->marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/markers/gate", qos);
 
     // Get parameters
     this->data.map_name = this->get_parameter("map").as_string();
@@ -222,6 +226,26 @@ void GatesPublisher::spawn_gates(double x, double y, double th){
   std::string xml = std::string((
     std::istreambuf_iterator<char>(std::ifstream(this->share_dir + "/models/gate/model.sdf").rdbuf())), std::istreambuf_iterator<char>());
   spawn_model(this->get_node_base_interface(), this->spawner_, xml, pose, "gate");
+
+  // Publish marker msg for Rviz
+  visualization_msgs::msg::MarkerArray markers;
+  visualization_msgs::msg::Marker marker;
+  marker.header = hh;
+  marker.ns = "gate";
+  marker.id = 0;
+  marker.type = visualization_msgs::msg::Marker::CUBE;
+  marker.action = visualization_msgs::msg::Marker::ADD;
+  marker.pose = pose;
+  marker.scale.x = 1.0;
+  marker.scale.y = 1.0;
+  marker.scale.z = 0.1;
+  marker.color.a = 1.0;
+  marker.color.r = 1.0;
+  marker.color.g = 0.0;
+  marker.color.b = 0.0;
+  markers.markers.push_back(marker);
+
+  marker_publisher_->publish(markers);
 }
 
 int main(int argc, char * argv[])

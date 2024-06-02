@@ -1,13 +1,13 @@
 #include "dubins.hpp"
 using namespace std;
 
-// Returns a vector containing the approximation of a PathCurve using n points.
+// Returns a vector containing the approximation of a DubinsCurve using n points.
 // If a straight arc is found inside the curve, its points will compose 10% of the total points.
 // Points that compose a curve arc will be proportional to the length of the arc inside the curve.
-std::vector<PathPoint> PathCurve::toPoints(int n) const {
-    std::vector<PathPoint> points;
+std::vector<WayPoint> DubinsCurve::toPoints(int n) const {
+    std::vector<WayPoint> points;
     const double straightCoeff = 0.1;
-    double curvesLength = getLength();
+    double curvesLength = get_length();
     for (auto& arc : arcs) {
         if (arc.curvature == 0) {
             n -= static_cast<int>(straightCoeff * n);
@@ -24,14 +24,15 @@ std::vector<PathPoint> PathCurve::toPoints(int n) const {
     return points;
 }
 
-std::vector<PathPoint> PathCurve::toPointsUniform(double spacing) const{
-    std::vector<PathPoint> points;
+std::vector<WayPoint> DubinsCurve::toPointsUniform(double step) const{
+    std::vector<WayPoint> points;
     if (arcs.empty()) {
         return points;
     }
     points.push_back(arcs[0].startPoint);
     for (auto& arc : arcs) {
-        auto arcPoints = arc.toPointsUniform(spacing);
+        int pointsCount = round(arc.arcLength / step) + 2;
+        auto arcPoints = toPoints(pointsCount);
         if (!arcPoints.empty()) {
             points.insert(points.end(), arcPoints.begin() + 1, arcPoints.end());
         }
@@ -39,37 +40,34 @@ std::vector<PathPoint> PathCurve::toPointsUniform(double spacing) const{
     return points;
 }
 
-std::vector<PathPoint> PathArc::toPointsUniform(double spacing) const{
-    int pointsCount = round(this->arcLength / spacing) + 2;
-    return toPoints(pointsCount);
-}
-
 // Returns a vector of n points that approximates the arc.
-std::vector<PathPoint> PathArc::toPoints(int n) const{
-    std::vector<PathPoint> points;
+std::vector<WayPoint> DubinsArc::toPoints(int n) const{
+    std::vector<WayPoint> points;
     if (n < 2) {
         return points;
     }
     double unitSegmentLength = this->arcLength / (n - 1);
     for (int i = 0; i < n; i++) {
         double arcLengthPortion = unitSegmentLength * i;
-        PathArc smallerArc(this->startPoint, arcLengthPortion, this->curvature);
-        PathPoint point = smallerArc.getDestination();
+        DubinsArc smallerArc(this->startPoint, arcLengthPortion, this->curvature);
+        WayPoint point = smallerArc.getDestination();
         points.push_back(point);
     }
     return points;
 }
 
-PathPoint PathArc::getDestination() const{
-    double x = this->startPoint.xPos + this->arcLength * sinc(this->curvature * this->arcLength / 2.0) * cos(this->startPoint.orientation + this->curvature * this->arcLength / 2);
-    double y = this->startPoint.yPos + this->arcLength * sinc(this->curvature * this->arcLength / 2.0) * sin(this->startPoint.orientation + this->curvature * this->arcLength / 2);
+WayPoint DubinsArc::getDestination() const{
+    double x = this->startPoint.x + this->arcLength * sinc(this->curvature * this->arcLength / 2.0) * cos(this->startPoint.orientation + this->curvature * this->arcLength / 2);
+    double y = this->startPoint.y + this->arcLength * sinc(this->curvature * this->arcLength / 2.0) * sin(this->startPoint.orientation + this->curvature * this->arcLength / 2);
     double orientation = mod2pi(this->startPoint.orientation + this->curvature * this->arcLength);
-    return PathPoint(x, y, orientation);
+    return WayPoint(x, y, orientation);
 }
 
-Eigen::Vector4d scaleToStandard(PathPoint startPoint, PathPoint endPoint, const double curvature) {
-    double dx = endPoint.xPos - startPoint.xPos;
-    double dy = endPoint.yPos - startPoint.yPos;
+/////////////////////////
+
+Eigen::Vector4d scale_to_standard(WayPoint startPoint, WayPoint endPoint, const double curvature) {
+    double dx = endPoint.x - startPoint.x;
+    double dy = endPoint.y - startPoint.y;
     double phi = atan2(dy, dx);
     double lambda = hypot(dx, dy) / 2;
 
@@ -79,13 +77,13 @@ Eigen::Vector4d scaleToStandard(PathPoint startPoint, PathPoint endPoint, const 
     return Eigen::Vector4d(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax, lambda);
 }
 
-Eigen::Vector3d scaleFromStandard(double lambda, double scaledS1, double scaledS2, double scaledS3) {
+Eigen::Vector3d scale_from_standard(double lambda, double scaledS1, double scaledS2, double scaledS3) {
     return Eigen::Vector3d(scaledS1 * lambda, scaledS2 * lambda, scaledS3 * lambda);
 }
 
-PathPrimitive calculateLSL(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_LSL(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     double const inverseK = 1 / scaledCurvatureMax;
-    PathPrimitive result;
+    PrimitiveResult result;
 
     double c = cos(scaledThetaEnd) - cos(scaledThetaStart);
     double s = 2 * scaledCurvatureMax + sin(scaledThetaStart) - sin(scaledThetaEnd);
@@ -105,9 +103,9 @@ PathPrimitive calculateLSL(double scaledThetaStart, double scaledThetaEnd, doubl
     return result;
 }
 
-PathPrimitive calculateRSR(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_RSR(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     double const inverseK = 1 / scaledCurvatureMax;
-    PathPrimitive result;
+    PrimitiveResult result;
 
     double c = cos(scaledThetaStart) - cos(scaledThetaEnd);
     double s = 2 * scaledCurvatureMax - sin(scaledThetaStart) + sin(scaledThetaEnd);
@@ -127,9 +125,9 @@ PathPrimitive calculateRSR(double scaledThetaStart, double scaledThetaEnd, doubl
     return result;
 }
 
-PathPrimitive calculateLSR(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_LSR(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     double const inverseK = 1 / scaledCurvatureMax;
-    PathPrimitive result;
+    PrimitiveResult result;
 
     double c = cos(scaledThetaStart) + cos(scaledThetaEnd);
     double s = 2 * scaledCurvatureMax + sin(scaledThetaStart) + sin(scaledThetaEnd);
@@ -147,9 +145,9 @@ PathPrimitive calculateLSR(double scaledThetaStart, double scaledThetaEnd, doubl
     return result;
 }
 
-PathPrimitive calculateRSL(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_RSL(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     double const inverseK = 1 / scaledCurvatureMax;
-    PathPrimitive result;
+    PrimitiveResult result;
 
     double c = cos(scaledThetaStart) + cos(scaledThetaEnd);
     double s = 2 * scaledCurvatureMax - sin(scaledThetaStart) - sin(scaledThetaEnd);
@@ -167,9 +165,9 @@ PathPrimitive calculateRSL(double scaledThetaStart, double scaledThetaEnd, doubl
     return result;
 }
 
-PathPrimitive calculateRLR(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_RLR(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     double const inverseK = 1 / scaledCurvatureMax;
-    PathPrimitive result;
+    PrimitiveResult result;
 
     double c = cos(scaledThetaStart) - cos(scaledThetaEnd);
     double s = 2 * scaledCurvatureMax - sin(scaledThetaStart) + sin(scaledThetaEnd);
@@ -186,9 +184,9 @@ PathPrimitive calculateRLR(double scaledThetaStart, double scaledThetaEnd, doubl
     return result;
 }
 
-PathPrimitive calculateLRL(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_LRL(double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     double const inverseK = 1 / scaledCurvatureMax;
-    PathPrimitive result;
+    PrimitiveResult result;
 
     double c = cos(scaledThetaEnd) - cos(scaledThetaStart);
     double s = 2 * scaledCurvatureMax + sin(scaledThetaStart) - sin(scaledThetaEnd);
@@ -205,49 +203,30 @@ PathPrimitive calculateLRL(double scaledThetaStart, double scaledThetaEnd, doubl
     return result;
 }
 
-
-
-PathPrimitive calculatePathPrimitive(CurveType curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
+PrimitiveResult calc_primitive_result(CurveType curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax) {
     switch (curveType) {
         case CurveType::LeftStraightLeft:
-            return calculateLSL(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
+            return calc_LSL(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
         case CurveType::RightStraightRight:
-            return calculateRSR(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
+            return calc_RSR(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
         case CurveType::LeftStraightRight:
-            return calculateLSR(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
+            return calc_LSR(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
         case CurveType::RightStraightLeft:
-            return calculateRSL(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
+            return calc_RSL(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
         case CurveType::RightLeftRight:
-            return calculateRLR(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
+            return calc_RLR(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
         case CurveType::LeftRightLeft:
-            return calculateLRL(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
+            return calc_LRL(scaledThetaStart, scaledThetaEnd, scaledCurvatureMax);
         default:
-            PathPrimitive result;
+            PrimitiveResult result;
             result.isValid = false;
             return result;
     }
 }
 
-void sortPathCurvesByLength(std::vector<PathCurve>& curves) {
-    if (curves.size() < 2) {
-        return; 
-    }
-    bool swapped = true;
-    int n = curves.size();
-    while (swapped) {
-        swapped = false;
-        for (int i = 1; i < n; i++) {
-            if (curves[i - 1].getLength() > curves[i].getLength()) {
-                std::swap(curves[i - 1], curves[i]);
-                swapped = true;
-            }
-        }
-        --n; 
-    }
-}
-
-std::vector<PathCurve> generatePathCurves(PathPoint startPoint, PathPoint endPoint, const double curvature) {
-    std::vector<PathCurve> curves;
+DubinsCurve find_shortest_curve(WayPoint startPoint, WayPoint endPoint, const double curvature) {
+    // generate curves
+    std::vector<DubinsCurve> curves;
     constexpr int optimalCurvesCount = 6;
 
     const std::map<CurveType, std::vector<ArcDirection>> curveToArcTypes = {
@@ -259,55 +238,64 @@ std::vector<PathCurve> generatePathCurves(PathPoint startPoint, PathPoint endPoi
         {CurveType::LeftRightLeft, {ArcDirection::LeftTurn, ArcDirection::RightTurn, ArcDirection::LeftTurn}}
     };
 
-    Eigen::Vector4d scaled = scaleToStandard(startPoint, endPoint, curvature);
+    Eigen::Vector4d scaled = scale_to_standard(startPoint, endPoint, curvature);
 
     for (int i = 0; i < optimalCurvesCount; i++) {
         CurveType ct = static_cast<CurveType>(i);
-        PathPrimitive prim = calculatePathPrimitive(ct, scaled(0), scaled(1), scaled(2));
+        PrimitiveResult prim = calc_primitive_result(ct, scaled(0), scaled(1), scaled(2));
         if (prim.isValid) {
-            Eigen::Vector3d curveLengths = scaleFromStandard(scaled(3), prim.firstArcLength, prim.secondArcLength, prim.thirdArcLength);
+            Eigen::Vector3d curveLengths = scale_from_standard(scaled(3), prim.firstArcLength, prim.secondArcLength, prim.thirdArcLength);
             auto arcTypes = curveToArcTypes.find(ct);
-            PathArc arc0(startPoint, curveLengths(0), static_cast<double>(arcTypes->second[0]) * curvature);
-            PathPoint intermediatePoint1 = arc0.getDestination();
-            PathArc arc1(intermediatePoint1, curveLengths(1), static_cast<double>(arcTypes->second[1]) * curvature);
-            PathPoint intermediatePoint2 = arc1.getDestination();
-            PathArc arc2(intermediatePoint2, curveLengths(2), static_cast<double>(arcTypes->second[2]) * curvature);
+            DubinsArc arc0(startPoint, curveLengths(0), static_cast<double>(arcTypes->second[0]) * curvature);
+            WayPoint intermediatePoint1 = arc0.getDestination();
+            DubinsArc arc1(intermediatePoint1, curveLengths(1), static_cast<double>(arcTypes->second[1]) * curvature);
+            WayPoint intermediatePoint2 = arc1.getDestination();
+            DubinsArc arc2(intermediatePoint2, curveLengths(2), static_cast<double>(arcTypes->second[2]) * curvature);
 
-            curves.push_back(PathCurve(arc0, arc1, arc2));
+            curves.push_back(DubinsCurve(arc0, arc1, arc2));
         }
     }
 
-    sortPathCurvesByLength(curves);
-
-    return curves;
-}
-
-PathCurve findShortestPathCurve(PathPoint startPoint, PathPoint endPoint, const double curvature) {
-    auto curves = generatePathCurves(startPoint, endPoint, curvature);
-    if (curves.empty()) {
-        return PathCurve(); // Return an empty PathCurve if no path is found
+    // sort by length
+    if (curves.size() > 1) {
+        bool swapped = true;
+        int n = curves.size();
+        while (swapped) {
+            swapped = false;
+            for (int i = 1; i < n; i++) {
+                if (curves[i - 1].get_length() > curves[i].get_length()) {
+                    std::swap(curves[i - 1], curves[i]);
+                    swapped = true;
+                }
+            }
+            --n; 
+        }
     }
-    return curves.at(0); // Assuming curves are sorted, return the shortest
+
+    if (curves.empty()) {
+        return DubinsCurve(); 
+    }
+    return curves.at(0); // return the shortest
 }
 
-bool checkPathArcIntersection(PathArc arc, Segment2D segment) {
+bool checkDubinsArcIntersection(DubinsArc arc, Segment2D segment) {
     // If arc is straight, simply compute a line segment and check for intersection
     if (arc.curvature == 0) {
-        Point2D source(arc.startPoint.xPos, arc.startPoint.yPos);
-        PathPoint arcDest = arc.getDestination();
-        Point2D dest(arcDest.xPos, arcDest.yPos);
+        Point2D source(arc.startPoint.x, arc.startPoint.y);
+        WayPoint arcDest = arc.getDestination();
+        Point2D dest(arcDest.x, arcDest.y);
         Segment2D arcSegment(source, dest);
         return intersect(segment, arcSegment); // Assuming intersect function exists for Segment2D types
     } else {
         // For a curved arc, build a circle to represent the arc and check intersection
-        Point2D p1(arc.startPoint.xPos, arc.startPoint.yPos);
+        Point2D p1(arc.startPoint.x, arc.startPoint.y);
 
-        PathArc arcMid(arc.startPoint, arc.arcLength * 0.5, arc.curvature);
-        PathPoint midPoint = arcMid.getDestination();
-        Point2D p2(midPoint.xPos, midPoint.yPos);
+        DubinsArc arcMid(arc.startPoint, arc.arcLength * 0.5, arc.curvature);
+        WayPoint midPoint = arcMid.getDestination();
+        Point2D p2(midPoint.x, midPoint.y);
 
-        PathPoint endPoint = arc.getDestination();
-        Point2D p3(endPoint.xPos, endPoint.yPos);
+        WayPoint endPoint = arc.getDestination();
+        Point2D p3(endPoint.x, endPoint.y);
 
         // Assuming getCircle function exists to find the circle from 3 points
         Circle circle = get_circle(p1, p2, p3);
@@ -320,14 +308,14 @@ bool checkPathArcIntersection(PathArc arc, Segment2D segment) {
     }
 }
 
-bool checkIntersection(PathCurve curve, Polygon polygon, int pointsCount) {
+bool checkIntersection(DubinsCurve curve, Polygon polygon, int pointsCount) {
     std::vector<Segment2D> segments;
-    auto points = curve.toPoints(pointsCount); // Use toPoints method adapted to PathCurve
+    auto points = curve.toPoints(pointsCount); // Use toPoints method adapted to DubinsCurve
 
     // Link consecutive points with segments
     for (size_t i = 1; i < points.size(); i++) {
-        Point2D startPoint(points[i - 1].xPos, points[i - 1].yPos);
-        Point2D endPoint(points[i].xPos, points[i].yPos);
+        Point2D startPoint(points[i - 1].x, points[i - 1].y);
+        Point2D endPoint(points[i].x, points[i].y);
         segments.emplace_back(startPoint, endPoint);
     }
 
@@ -342,17 +330,52 @@ bool checkIntersection(PathCurve curve, Polygon polygon, int pointsCount) {
     return false;
 }
 
-std::string operator + (std::string s, const PathPoint& point) {
-    return s + "(" + std::to_string(point.xPos) + ";" + std::to_string(point.yPos) + ";" + std::to_string(static_cast<int>(point.orientation * 180 / M_PI)) + ")";
-}
+///////////////
 
-std::string operator + (std::string s, const PathArc& arc) {
-    return s + (arc.curvature == -1 ? "R" : (arc.curvature == 1 ? "L" : "S"));
-}
+std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double max_curvature) {
+    int n = points.size();  // no. of points
+    int k = 1000;             // no. of angle discretisation
+    
+    std::vector<double> total_length(2, 0);
+    std::vector<DubinsCurve> dubins_path(n-1);
+    
+    for (int i = n-2; i >= 0; i--) { // start iterating from goal to start point
+        if (i == 0) {
+            DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature);
+            dubins_path[i] = dubins;
+            std::cout<<"MPDB>> (x,y,theta): "<<points[i].x<<", "<<points[i].y<<", "<<points[i].orientation<<std::endl;
+        } else {
+            double min_length = numeric_limits<double>::infinity();
+            double opt_theta = numeric_limits<double>::infinity();
+            double step_begin = points[i+1].orientation - M_PI;
+            double step_end = points[i+1].orientation + M_PI;
+            double step = (step_end - step_begin)/k;
+            std::cout<<"MPDB>> th_start: "<<step_begin<<", th_end: "<<step_end<<", th_step: "<<step<<std::endl;
 
-std::string operator + (std::string s, const PathCurve& curve) {
-    for (const auto& arc : curve.arcs) {
-        s = s + arc; // Assuming PathArc has an operator+ overload to append string representation
+            for (double theta = step_begin; theta <= step_end; theta+=step) {
+                points[i].orientation = mod2pi(theta);
+                DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature);
+                if (dubins.get_length() == 0) {
+                    continue;
+                }
+                if (dubins.get_length() < min_length) {
+                    dubins_path[i] = dubins;
+                    opt_theta = mod2pi(theta);
+                }
+            }
+            points[i].orientation = opt_theta;
+            std::cout<<"MPDB>> (x,y,theta)_i+1: "<<points[i+1].x<<", "<<points[i+1].y<<", "<<points[i+1].orientation<<std::endl;
+            std::cout<<"MPDB>> (x,y,theta)_i: "<<points[i].x<<", "<<points[i].y<<", "<<points[i].orientation<<std::endl;
+        }
+        
+        total_length[0] = dubins_path[i].get_length() + total_length[1];
+        total_length[1] = total_length[0];
     }
-    return s;
+
+    std::cout<<"MPDB>> total_length: "<<total_length[0]<<std::endl;
+        // print log
+    for (size_t i = 0; i < dubins_path.size(); ++i) {
+        std::cout<<"MPDB>> length: "<<dubins_path[i].get_length()<<std::endl;
+    }
+    return dubins_path;
 }
