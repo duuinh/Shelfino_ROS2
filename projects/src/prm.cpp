@@ -1,8 +1,7 @@
 #include "prm.hpp"
 
-PRM::PRM(int k_neighbors, std::vector<Obstacle> obstacles, std::vector<GraphNode> borders)
+PRM::PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders)
 {
-    int n_samples = 1000;
     obstacles_ = obstacles;
     double x_max = std::numeric_limits<double>::min();
     double x_min = std::numeric_limits<double>::max();

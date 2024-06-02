@@ -23,14 +23,15 @@ struct RoadMap
 class PRM
 {
 public:
-    PRM(int k_neighbors, std::vector<Obstacle> obstacles, std::vector<GraphNode> borders);
+    PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders);
     ShortestPath find_shortest_path(const Point &start_point, const Point &target_point);
 
 private:
     RoadMap roadmap;
     std::vector<Obstacle> obstacles_;
-    int k_neighbors = 6;    // number of neighbor nodes
-    double clearance = 0.2; // offset radius of the robot that should be free of obstacles [m]
+    int n_samples = 500;
+    int k_neighbors = 100;      // number of neighbor nodes
+    double clearance = 0.5;     // offset radius of the robot that should be free of obstacles [m]
     Point generate_new_point(double x_min, double x_max, double y_min, double y_max);
     bool is_in_free_space(Point &new_point, std::vector<GraphNode> borders);
     bool is_obstacle_free(Point &new_point, Point &neighbor);
