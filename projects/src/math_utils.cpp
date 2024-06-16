@@ -25,19 +25,35 @@ bool is_integer(const double& value) {
     return std::modf(value, &intpart) == 0.0; // fractpart == 0.0
 }
 
-double sinc(double t){
-    if(t==0){
-        return 1;
-    }
-    return abs(t)<0.002 ? 1-(t*t)/6*(1-(t*t)/20) : sin(t)/t;
+double sinc(double x) {
+    if (abs(x) < 0.002) {
+        return 1-(x*x)*(1/6-(x*x)/120);
+    } 
+    return sin(x)/x;
 }
 
 double mod2pi(double angle)
 {
-    double out = angle;
-    while(out < 0) out+= 2*M_PI;
-    while(out >= 2*M_PI) out-= 2*M_PI;
-    return out;
+    double output = angle;
+    while (output < 0) {
+        output += 2 * M_PI;
+    }
+    while (output >= 2 * M_PI) { 
+        output -= 2 * M_PI;
+    }
+    return output;
+}
+
+double modpi(float angle)
+{
+    double output = angle;
+    while (output <= -M_PI) {
+        output += 2 * M_PI;
+    }
+    while (output > M_PI) { 
+        output -= 2 * M_PI;
+    }
+    return output;
 }
 
 double distance(const Point& a, const Point& b) {
