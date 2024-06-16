@@ -6,6 +6,8 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "std_msgs/msg/header.hpp"
 #include "utils.h"
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 
 using namespace std::chrono_literals;
 using FollowPath = nav2_msgs::action::FollowPath;
@@ -48,7 +50,7 @@ nav_msgs::msg::Path generate_path(std::vector<DubinsCurve> curves, std_msgs::msg
     pose.header.frame_id = "map";
 
     for (auto curve : curves) {
-        auto points = curve.toPointsUniform(0.1);
+        auto points = curve.get_points(0.1);
         for (auto point : points) {
             pose.pose.position.x = point.x;
             pose.pose.position.y = point.y;
@@ -78,8 +80,7 @@ std::vector<nav_msgs::msg::Path> split_path(const nav_msgs::msg::Path& dubins_pa
             auto& last_pose = current_section.poses.back();
             double dx = pose.pose.position.x - last_pose.pose.position.x;
             double dy = pose.pose.position.y - last_pose.pose.position.y;
-            double dz = pose.pose.position.z - last_pose.pose.position.z;
-            double distance = sqrt(dx * dx + dy * dy + dz * dz);
+            double distance = sqrt(dx * dx + dy * dy);
 
             // If adding the pose exceeds the section distance, start a new section
             if (accumulated_distance + distance > section_length) {
@@ -111,6 +112,9 @@ class FollowPathActionClient : public rclcpp::Node {
     rclcpp_action::Client<FollowPath>::SharedPtr client_ptr_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr plan_subscription_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr dubins_publisher_;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
+
     int section_cnt = 0;
     std::vector<nav_msgs::msg::Path> sections;
 
@@ -156,16 +160,6 @@ class FollowPathActionClient : public rclcpp::Node {
         ss << "Distance to goal: " << distance_to_goal << ", Speed: " << feedback->speed;
         RCLCPP_INFO(this->get_logger(), "Received feedback");
         RCLCPP_INFO(this->get_logger(), ss.str().c_str());
-    
-        // if (distance_to_goal < 0.5) {
-        //     // this->publish_path(this->sections[section_cnt]);
-        //     this->client_ptr_->async_cancel_all_goals
-        //     (
-        //     [this](rclcpp_action::Client<FollowPath>::SharedPtr client) {
-        //         RCLCPP_INFO(get_logger(), "All goals canceled");
-        //         this->publish_path(this->sections[section_cnt]);
-        //     });
-        // }
     }
 
     void result_callback(const GoalHandleFollowPath::WrappedResult& result) {
@@ -195,15 +189,24 @@ class FollowPathActionClient : public rclcpp::Node {
         }
     }
 
+    void visualize_path(std::vector<DubinsCurve> dubins_curves) {
+        std_msgs::msg::Header header;
+        nav_msgs::msg::Path path_msg = generate_path(dubins_curves, header);
+        this->dubins_publisher_->publish(path_msg);
+    }
+
     void plan_callback(nav_msgs::msg::Path::SharedPtr path_msg) {
         std_msgs::msg::Header header;
-        header.stamp = this->now();
-        double section_length = 20.0;
-        double arc_radius = 0.5;
-        double max_curvature = 1.0/arc_radius;
+        header.stamp = this->get_clock()->now();
+        header.frame_id = "map";
+
+        double section_length = 5.0;
+        double turning_radius = 0.5;
+        double max_curvature = 1/turning_radius;
 
         std::vector<DubinsCurve> dubins_curves;
         std::vector<WayPoint> points;
+        visualization_msgs::msg::MarkerArray markers;
 
         auto start_time = get_clock()->now().seconds();
         RCLCPP_INFO(get_logger(), "Starting Dubins motion planning");
@@ -216,11 +219,32 @@ class FollowPathActionClient : public rclcpp::Node {
             WayPoint point(pose.position.x, pose.position.y, orientation);
 
             points.push_back(point);
+            
+            // add marker
+            visualization_msgs::msg::Marker pos_marker;
+            pos_marker.header = header;
+            pos_marker.ns = "path_point";
+            pos_marker.id = i;
+            pos_marker.action = visualization_msgs::msg::Marker::ADD;
+            pos_marker.type = visualization_msgs::msg::Marker::CYLINDER;
+            pos_marker.pose = pose;
+            pos_marker.scale.x = 0.5;
+            pos_marker.scale.y = 0.5;
+            pos_marker.scale.z = 0.5;
+            pos_marker.color.a = 1.0;
+            pos_marker.color.r = 1.0;
+            pos_marker.color.g = 0.0;
+            pos_marker.color.b = 1.0;
+            markers.markers.push_back(pos_marker);
+            RCLCPP_INFO(get_logger(), "waypoint: (%f , %f, %f)", pose.position.x, pose.position.y, orientation);
         }
 
+        this->marker_publisher_->publish(markers);
         dubins_curves = solve_multipoints_dubins(points, max_curvature);
 
         RCLCPP_INFO(get_logger(), "Finished Dubins motion planning [time: %f sec]", get_clock()->now().seconds() - start_time);
+
+        visualize_path(dubins_curves);
 
         // Convert Dubins curves to a sequence of points
         auto dubins_points = generate_path(dubins_curves, header);
@@ -247,8 +271,13 @@ class FollowPathActionClient : public rclcpp::Node {
 
         // create action client
         this->client_ptr_ = rclcpp_action::create_client<FollowPath>(this, action_server_name);
+
         // Create publisher for the path
         this->path_publisher_ = this->create_publisher<nav_msgs::msg::Path>(publish_path_topic, 10);
+
+        // Create publisher for visualization
+        this->dubins_publisher_ = this->create_publisher<nav_msgs::msg::Path>("/markers/dubins_path", rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom));
+        this->marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/markers/path_points", rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom));
 
         // Subscribe to the /victims_path_planner topic
         this->plan_subscription_ = this->create_subscription<nav_msgs::msg::Path>("victims_rescue_path",

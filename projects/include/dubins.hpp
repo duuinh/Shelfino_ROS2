@@ -8,23 +8,39 @@
 #include <cmath>
 #include <cstdlib>
 #include "math_utils.hpp"
-#include "shapes.hpp"
+// #include "shapes.hpp"
+#include "common_struct.hpp"
 #include <map>
+#include <limits>
 
-enum CurveType {
-    LeftStraightLeft,
-    RightStraightRight,
-    LeftStraightRight,
-    RightStraightLeft,
-    RightLeftRight,
-    LeftRightLeft,
-    Undefined = -1
+enum DubinsWord {
+    LSL,
+    RSR,
+    LSR,
+    RSL,
+    RLR,
+    LRL,
+    UNDEFINED
 };
 
-enum ArcDirection {
+enum MotionPrimitive {
     Straight = 0,
     LeftTurn = 1,
     RightTurn = -1
+};
+
+const std::map<DubinsWord, std::vector<MotionPrimitive>> dubins_word_to_motions = {
+    {DubinsWord::LSL, {MotionPrimitive::LeftTurn, MotionPrimitive::Straight, MotionPrimitive::LeftTurn}},
+    {DubinsWord::RSR, {MotionPrimitive::RightTurn, MotionPrimitive::Straight, MotionPrimitive::RightTurn}},
+    {DubinsWord::LSR, {MotionPrimitive::LeftTurn, MotionPrimitive::Straight, MotionPrimitive::RightTurn}},
+    {DubinsWord::RSL, {MotionPrimitive::RightTurn, MotionPrimitive::Straight, MotionPrimitive::LeftTurn}},
+    {DubinsWord::RLR, {MotionPrimitive::RightTurn, MotionPrimitive::LeftTurn, MotionPrimitive::RightTurn}},
+    {DubinsWord::LRL, {MotionPrimitive::LeftTurn, MotionPrimitive::RightTurn, MotionPrimitive::LeftTurn}}
+};
+
+struct PrimitiveResult {
+    bool is_valid = false;
+    double s1 = 0, s2 = 0, s3 = 0;
 };
 
 class WayPoint {
@@ -35,30 +51,28 @@ public:
 
     WayPoint() : x{0}, y{0}, orientation{0} {}
     WayPoint(double x, double y, double orientation) : x{x}, y{y}, orientation{orientation} {}
-    WayPoint(Point2D position, double orientation) : x{position.x}, y{position.y}, orientation{orientation} {}
-
-    Point2D getPosition() const { return Point2D(x, y); }
-
-    friend bool operator==(const WayPoint& lhs, const WayPoint& rhs) {
-        return lhs.x == rhs.x && lhs.y == rhs.y && lhs.orientation <= rhs.orientation * 1.03 && lhs.orientation >= rhs.orientation * 0.97;
-    }
+    WayPoint(Point position, double orientation) : x{position.x}, y{position.y}, orientation{orientation} {}
 };
-std::string operator+(std::string s, const WayPoint& point);
 
 class DubinsArc {
 public:
-    WayPoint startPoint;
-    double arcLength;
+    WayPoint start;
+    double length;
     double curvature;
 
-    DubinsArc() : startPoint{WayPoint()}, arcLength{0}, curvature{0} {};
-    DubinsArc(WayPoint startPoint, double arcLength, double curvature) : startPoint{startPoint}, arcLength{arcLength}, curvature{curvature} {}
+    DubinsArc() : start{WayPoint()}, length{0}, curvature{0} {};
 
-    WayPoint getDestination() const;
-    std::vector<WayPoint> toPoints(int pointCount) const;
-    std::vector<WayPoint> toPointsUniform(double spacing) const;
+    DubinsArc(WayPoint startPoint, double arcLength, double curvature) : start{startPoint}, length{arcLength}, curvature{curvature} {}
+
+    WayPoint get_final_point() const {
+        double x = this->start.x + this->length * sinc(this->curvature * this->length / 2.0) * cos(this->start.orientation + this->curvature * this->length / 2.0);
+        double y = this->start.y + this->length * sinc(this->curvature * this->length / 2.0) * sin(this->start.orientation + this->curvature * this->length / 2.0);
+        double orientation = mod2pi(this->start.orientation + this->curvature * this->length);
+        return WayPoint(x, y, orientation);
+    }
+    
+    std::vector<WayPoint> get_points(double step) const;
 };
-std::string operator+(std::string s, const DubinsArc& arc);
 
 class DubinsCurve {
 public:
@@ -68,37 +82,24 @@ public:
     DubinsCurve(DubinsArc arc1, DubinsArc arc2, DubinsArc arc3) : arcs{arc1, arc2, arc3} {}
 
     double get_length() const {
-        double totalLength = 0;
-        for (const auto& arc : arcs) totalLength += arc.arcLength;
-        return totalLength;
+        double length = 0;
+        for (const auto& arc : arcs) {
+            length += arc.length;
+        }
+        return length;
     }
 
-    std::vector<WayPoint> toPoints(int pointCount) const;
-    /**
-     * Converts the Dubins path to a vector of uniformly spaced points.
-     *
-     * @param spacing The spacing between consecutive points.
-     * @return A vector of WayPoint objects representing the uniformly spaced points.
-     */
-    std::vector<WayPoint> toPointsUniform(double spacing) const;
-};
-std::string operator+(std::string s, const DubinsCurve& curve);
-
-
-struct PrimitiveResult {
-    bool isValid;
-    double firstArcLength, secondArcLength, thirdArcLength;
+    std::vector<WayPoint> get_points(double step) const;
 };
 
-DubinsCurve calculateShortestPath(WayPoint start, WayPoint end, double curvature);
-bool checkIntersection(DubinsCurve path, Polygon polygon);
-bool checkIntersection(DubinsCurve path, Segment2D segment);
-bool checkIntersection(DubinsCurve path, Polygon polygon, int precision);
-bool checkIntersectionWithSides(DubinsCurve path, Polygon polygon);
+// bool checkIntersection(DubinsCurve path, Polygon polygon);
+// bool checkIntersection(DubinsCurve path, Segment2D segment);
+// bool checkIntersection(DubinsCurve path, Polygon polygon, int precision);
+// bool checkIntersectionWithSides(DubinsCurve path, Polygon polygon);
+// bool checkDubinsArcIntersection(DubinsArc arc, Segment2D segment);
 
-PrimitiveResult calc_primitive_result(CurveType curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax);
+PrimitiveResult calculate_primitive_result(DubinsWord curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax);
 DubinsCurve find_shortest_curve(WayPoint startPoint, WayPoint endPoint, const double curvature);
-bool checkDubinsArcIntersection(DubinsArc arc, Segment2D segment);
 
 std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double curvature);
 #endif

@@ -16,6 +16,7 @@ find_package(rclcpp_components REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
 
 
 install(DIRECTORY
@@ -32,7 +33,6 @@ add_library(${PROJECT_NAME}_lib SHARED
   src/ilp_solver.cpp
   src/math_utils.cpp
   src/dubins.cpp
-  src/shapes.cpp
   src/orienteering_solver.cpp
   src/prm.cpp
 )
@@ -51,7 +51,6 @@ foreach(NODE ${NODES})
     src/ilp_solver.cpp 
     src/math_utils.cpp 
     src/dubins.cpp 
-    src/shapes.cpp 
     src/prm.cpp
     src/orienteering_solver.cpp)
 
@@ -74,6 +73,7 @@ foreach(NODE ${NODES})
     "nav_msgs"
     "nav2_msgs"
     "std_msgs"
+    "visualization_msgs"
   )
 
   install(TARGETS ${NODE}
