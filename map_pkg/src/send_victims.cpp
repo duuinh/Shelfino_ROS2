@@ -317,10 +317,10 @@ void VictimPublisher::spawn_and_publish_victims(const std::vector<obstacle>& vic
     pos_marker.action = visualization_msgs::msg::Marker::ADD;
     pos_marker.type = visualization_msgs::msg::Marker::CYLINDER;
     pos_marker.pose = pose;
-    pos_marker.scale.x = obs.radius/this->data.max_weight;
-    pos_marker.scale.y = obs.radius/this->data.max_weight;
+    pos_marker.scale.x = obs.radius/this->data.max_weight*3;
+    pos_marker.scale.y = obs.radius/this->data.max_weight*3;
     pos_marker.scale.z = 0.1;
-    pos_marker.color.a = 1.0;
+    pos_marker.color.a = 0.5;
     pos_marker.color.r = 0.0;
     pos_marker.color.g = 0.0;
     pos_marker.color.b = 1.0;
@@ -333,7 +333,7 @@ void VictimPublisher::spawn_and_publish_victims(const std::vector<obstacle>& vic
     weight_marker.action = visualization_msgs::msg::Marker::ADD;
     weight_marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
     weight_marker.pose = pose;
-    weight_marker.scale.z = 0.2;
+    weight_marker.scale.z = 0.9;
     // white color
     weight_marker.color.a = 1.0;
     weight_marker.color.r = 1.0;
