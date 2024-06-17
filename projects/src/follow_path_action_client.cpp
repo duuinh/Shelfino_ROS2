@@ -226,10 +226,10 @@ class FollowPathActionClient : public rclcpp::Node {
             pos_marker.ns = "path_point";
             pos_marker.id = i;
             pos_marker.action = visualization_msgs::msg::Marker::ADD;
-            pos_marker.type = visualization_msgs::msg::Marker::CYLINDER;
+            pos_marker.type = visualization_msgs::msg::Marker::CUBE;
             pos_marker.pose = pose;
-            pos_marker.scale.x = 0.5;
-            pos_marker.scale.y = 0.5;
+            pos_marker.scale.x = 0.3;
+            pos_marker.scale.y = 0.3;
             pos_marker.scale.z = 0.5;
             pos_marker.color.a = 1.0;
             pos_marker.color.r = 1.0;
