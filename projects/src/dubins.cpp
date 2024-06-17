@@ -198,7 +198,7 @@ bool is_solution_valid(PrimitiveResult result, std::vector<double> k, double sca
     // s(i) >= 0
     length_positive = (result.s1 > 0) || (result.s2 > 0) || (result.s3 > 0);
 
-    return (sqrt((eq1*eq1) + (eq2*eq2) + (eq3*eq3)) < 1.e-2) && length_positive;
+    return (sqrt((eq1*eq1) + (eq2*eq2) + (eq3*eq3)) < 2.e-1) && length_positive;
 }
 
 DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const double max_curvature) {
@@ -303,11 +303,9 @@ DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const d
 
 std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double max_curvature) {
     int n = points.size();  // no. of points
-    int k = 1000;           // no. of angle discretisation
     
     std::vector<double> total_length(2, 0);
     std::vector<DubinsCurve> dubins_path(n-1);
-    // points[0].orientation = mod2pi(points[0].orientation + M_PI);
     
     for (int i = n-2; i >= 0; i--) { // start iterating from goal to start point
         if (i == 0) {
@@ -316,9 +314,11 @@ std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points
         } else {
             double min_length = numeric_limits<double>::infinity();
             double opt_theta = numeric_limits<double>::infinity();
-            double step =  2*M_PI /k;
+            double step_begin = 0;
+            double step_end = 2* M_PI;
+            double step = M_PI/8;
 
-            for (double theta = 0; theta < 2*M_PI; theta+=step) {
+            for (double theta = step_begin; theta < step_end; theta+=step) {
                 points[i].orientation = theta;
                 DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature);
                 if (dubins.get_length() == 0) {
