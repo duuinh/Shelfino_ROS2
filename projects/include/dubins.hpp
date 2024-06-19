@@ -1,6 +1,4 @@
-#ifndef DUBINS_H
-#define DUBINS_H
-
+#pragma once
 
 #include <iostream>
 #include <cmath>
@@ -9,6 +7,7 @@
 #include "common_struct.hpp"
 #include <map>
 #include <limits>
+#include "homog2d.hpp"
 
 enum DubinsWord {
     LSL,
@@ -89,14 +88,8 @@ public:
     std::vector<WayPoint> get_points() const;
 };
 
-// bool checkIntersection(DubinsCurve path, Polygon polygon);
-// bool checkIntersection(DubinsCurve path, Segment2D segment);
-// bool checkIntersection(DubinsCurve path, Polygon polygon, int precision);
-// bool checkIntersectionWithSides(DubinsCurve path, Polygon polygon);
-// bool checkDubinsArcIntersection(DubinsArc arc, Segment2D segment);
+bool check_collision(DubinsCurve curve, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles);
 
 PrimitiveResult calculate_primitive_result(DubinsWord curveType, double scaledThetaStart, double scaledThetaEnd, double scaledCurvatureMax);
-DubinsCurve find_shortest_curve(WayPoint startPoint, WayPoint endPoint, const double curvature);
-
-std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double curvature);
-#endif
+DubinsCurve find_shortest_curve(WayPoint startPoint, WayPoint endPoint, const double curvature, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles);
+std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double curvature, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles);

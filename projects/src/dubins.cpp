@@ -202,7 +202,7 @@ bool is_solution_valid(PrimitiveResult result, std::vector<double> k, double sca
     return (sqrt((eq1*eq1) + (eq2*eq2) + (eq3*eq3)) < 2.e-1) && length_positive;
 }
 
-DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const double max_curvature) {
+DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const double max_curvature, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles) {
     DubinsCurve shortest_curve = DubinsCurve();
     DubinsWord shortest_dubins = DubinsWord::UNDEFINED;
     double shortest_length = std::numeric_limits<double>::max();
@@ -302,7 +302,7 @@ DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const d
 
 ///////////////
 
-std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double max_curvature) {
+std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points, const double max_curvature, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles) {
     int n = points.size();  // no. of points
     
     std::vector<double> total_length(2, 0);
@@ -310,7 +310,7 @@ std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points
     
     for (int i = n-2; i >= 0; i--) { // start iterating from goal to start point
         if (i == 0) {
-            DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature);
+            DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature, borders, obstacles);
             dubins_path[i] = dubins;
         } else {
             double min_length = numeric_limits<double>::infinity();
@@ -321,7 +321,7 @@ std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points
 
             for (double theta = step_begin; theta < step_end; theta+=step) {
                 points[i].orientation = theta;
-                DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature);
+                DubinsCurve dubins = find_shortest_curve(points[i], points[i+1], max_curvature, borders, obstacles);
                 if (dubins.get_length() == 0) {
                     continue;
                 }
