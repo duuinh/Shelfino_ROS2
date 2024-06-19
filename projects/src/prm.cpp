@@ -247,7 +247,10 @@ ShortestPath PRM::find_shortest_path(const Point &start_point, const Point &targ
 
             // add last node
             shortest_path.path.push_back({current_node.x, current_node.y});
-            current_node = closed_set.at(current_node.parent_idx);
+
+            if (current_node.parent_idx != -1) { // not first node
+                current_node = closed_set.at(current_node.parent_idx);
+            }
 
             while (true)
             {
