@@ -209,7 +209,11 @@ public:
     for (int i = 0; i < node_indices.size() - 1; ++i)
     {
       std::vector<GraphNode> edge = road_map[node_indices.at(i)][node_indices.at(i + 1)];
-      path.insert(path.end(), edge.begin(), edge.end() - 1);
+      if (!edge.empty()) {
+        path.insert(path.end(), edge.begin(), edge.end() - 1);
+      } else {
+           RCLCPP_ERROR(get_logger(), "Edge from %zu to %zu is empty", node_indices.at(i), node_indices.at(i + 1));
+      }
     }
 
     // sending path msg to action client node
