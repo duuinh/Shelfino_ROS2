@@ -3,12 +3,9 @@
 
 
 #include <iostream>
-#include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Dense>
 #include <cmath>
 #include <cstdlib>
 #include "math_utils.hpp"
-// #include "shapes.hpp"
 #include "common_struct.hpp"
 #include <map>
 #include <limits>
@@ -71,7 +68,7 @@ public:
         return WayPoint(x, y, orientation);
     }
     
-    std::vector<WayPoint> get_points(double step) const;
+    std::vector<WayPoint> get_points() const;
 };
 
 class DubinsCurve {
@@ -89,7 +86,7 @@ public:
         return length;
     }
 
-    std::vector<WayPoint> get_points(double step) const;
+    std::vector<WayPoint> get_points() const;
 };
 
 // bool checkIntersection(DubinsCurve path, Polygon polygon);
