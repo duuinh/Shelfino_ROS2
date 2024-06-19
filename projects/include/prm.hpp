@@ -31,7 +31,6 @@ private:
     std::vector<Obstacle> obstacles_;
     int n_samples = 500;
     int k_neighbors = 100;      // number of neighbor nodes
-    double clearance = 0.5;     // offset radius of the robot that should be free of obstacles [m]
     Point generate_new_point(double x_min, double x_max, double y_min, double y_max);
     bool is_in_free_space(Point &new_point, std::vector<GraphNode> borders);
     bool is_obstacle_free(Point &new_point, Point &neighbor);

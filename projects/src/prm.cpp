@@ -88,18 +88,22 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
     // check for obstacle
     for (Obstacle &obstacle : obstacles_)
     {
-        h2d::Circle robot_circle = h2d::Circle(h2d::Point2d(new_point.x, new_point.y), ROBOT_RADIUS + clearance);
+        h2d::Circle robot_circle = h2d::Circle(h2d::Point2d(new_point.x, new_point.y), ROBOT_RADIUS);
 
         if (obstacle.type == ObstacleType::CYLINDER)
         {
-            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y));
+            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius + INFLATION_RADIUS);
             if (obs_circle.intersects(robot_circle).size() > 0)
             {
                 return false;
             }
         }
         else if (obstacle.type == ObstacleType::BOX)
-        {
+        {   
+            
+            obstacle.dx += INFLATION_RADIUS*2;
+            obstacle.dy += INFLATION_RADIUS*2;
+
             h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
                 {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
                 {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
@@ -112,7 +116,7 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
         }
 
         // check if inside the map
-        if (!is_inside_map(new_point, ROBOT_RADIUS + clearance, borders))
+        if (!is_inside_map(new_point, ROBOT_RADIUS + INFLATION_RADIUS, borders))
         {
             return false;
         }
@@ -148,7 +152,7 @@ bool PRM::is_obstacle_free(Point &new_point, Point &neighbor)
         {
             // check distance from obstacle (point) to the line
             if (ox >= std::min(new_point.x, neighbor.x) && ox <= std::max(new_point.x, neighbor.x) &&
-                std::abs(m * ox - oy + b) / std::sqrt(m * m + 1) < obs_radius + ROBOT_RADIUS + clearance)
+                std::abs(m * ox - oy + b) / std::sqrt(m * m + 1) < obs_radius + ROBOT_RADIUS + INFLATION_RADIUS)
             {
                 return false;
             }
