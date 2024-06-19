@@ -13,7 +13,8 @@
 #include "nav_msgs/msg/path.hpp"
 #include "orienteering_solver.hpp"
 #include "prm.hpp"
-
+#include "visualization_msgs/msg/marker.hpp"
+#include "visualization_msgs/msg/marker_array.hpp"
 class VictimsPathPlannerNode : public rclcpp_lifecycle::LifecycleNode
 {
 private:
@@ -23,6 +24,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseArray>::SharedPtr sub_gate_;
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_initial_pos_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
+  rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
 
   bool borders_ready = false;
   bool obstacles_ready = false;
@@ -118,6 +120,34 @@ private:
     }
   }
 
+  void visualize_roadmap_nodes(std::vector<Point> nodes) {
+        std_msgs::msg::Header header;
+        header.stamp = this->get_clock()->now();
+        header.frame_id = "map";
+        visualization_msgs::msg::MarkerArray markers;
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            // add marker
+            visualization_msgs::msg::Marker pos_marker;
+            pos_marker.header = header;
+            pos_marker.ns = "roadmap_nodes";
+            pos_marker.id = i;
+            pos_marker.action = visualization_msgs::msg::Marker::ADD;
+            pos_marker.type = visualization_msgs::msg::Marker::CYLINDER;
+            pos_marker.pose.position.x = nodes[i].x;
+            pos_marker.pose.position.y = nodes[i].y;
+            pos_marker.scale.x = 0.1;
+            pos_marker.scale.y = 0.1;
+            pos_marker.scale.z = 0.1;
+            pos_marker.color.a = 0.5;
+            pos_marker.color.r = 1.0;
+            pos_marker.color.g = 0.0;
+            pos_marker.color.b = 1.0;
+            markers.markers.push_back(pos_marker);
+        }
+
+        this->marker_publisher_->publish(markers);
+    }
+
 public:
   explicit VictimsPathPlannerNode(bool intra_process_comms = false)
       : rclcpp_lifecycle::LifecycleNode("victims_path_planner",
@@ -164,6 +194,8 @@ public:
         std::bind(&VictimsPathPlannerNode::initial_pose_callback, this, std::placeholders::_1));
     RCLCPP_INFO(get_logger(), ("Subscribed to " + initial_pose_topic).c_str());
 
+    this->marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/markers/path_points", rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom));
+    
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -286,6 +318,7 @@ void VictimsPathPlannerNode::construct_roadmap()
     distance_matrix.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
     road_map.resize(nodes.size(), std::vector<std::vector<GraphNode>>(nodes.size()));
     PRM prm = PRM(obstacles, borders, victims);
+    visualize_roadmap_nodes(prm.get_roadmap().nodes);
 
     for (size_t i = 0; i < nodes.size(); ++i)
     {

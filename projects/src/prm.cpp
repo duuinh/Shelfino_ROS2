@@ -93,7 +93,7 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
         if (obstacle.type == ObstacleType::CYLINDER)
         {
             h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius + INFLATION_RADIUS);
-            if (obs_circle.intersects(robot_circle).size() > 0)
+            if (robot_circle.isInside(obs_circle) || obs_circle.intersects(robot_circle).size() > 0)
             {
                 return false;
             }
@@ -109,7 +109,8 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
                 {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
                 {obstacle.x + obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
                 {obstacle.x + obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0}});
-            if (obs_box.intersects(robot_circle).size() > 0)
+                
+            if (robot_circle.isInside(obs_box) || obs_box.intersects(robot_circle).size() > 0)
             {
                 return false;
             }

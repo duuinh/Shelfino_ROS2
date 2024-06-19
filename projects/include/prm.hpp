@@ -25,6 +25,9 @@ class PRM
 public:
     PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders, std::vector<GraphNode> victims);
     ShortestPath find_shortest_path(const Point &start_point, const Point &target_point);
+    RoadMap get_roadmap() {
+        return roadmap;
+    }
 
 private:
     RoadMap roadmap;
