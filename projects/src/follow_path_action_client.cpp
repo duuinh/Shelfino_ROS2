@@ -8,6 +8,7 @@
 #include "utils.h"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
+#include "obstacles_msgs/msg/obstacle_array_msg.hpp"
 
 using namespace std::chrono_literals;
 using FollowPath = nav2_msgs::action::FollowPath;
@@ -114,9 +115,13 @@ class FollowPathActionClient : public rclcpp::Node {
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr dubins_publisher_;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
+    rclcpp::Subscription<geometry_msgs::msg::Polygon>::SharedPtr sub_borders_;
+    rclcpp::Subscription<obstacles_msgs::msg::ObstacleArrayMsg>::SharedPtr sub_obstacles_;
 
     int section_cnt = 0;
     std::vector<nav_msgs::msg::Path> sections;
+    std::vector<GraphNode> borders;
+    std::vector<Obstacle> obstacles;
 
     void send_goal(nav_msgs::msg::Path path) {
         if (!this->client_ptr_->wait_for_action_server()) {
@@ -255,6 +260,37 @@ class FollowPathActionClient : public rclcpp::Node {
         this->publish_path(this->sections[section_cnt]);
     }
 
+    void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
+    {
+        RCLCPP_INFO(get_logger(), "Received borders with %zu points:", msg->points.size());
+        for (const auto &point : msg->points)
+        {
+            RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f", point.x, point.y);
+            this->borders.push_back({point.x, point.y, 0.0});
+        }
+    }
+
+    void obstacles_callback(const obstacles_msgs::msg::ObstacleArrayMsg::SharedPtr msg)
+    {
+        RCLCPP_INFO(get_logger(), "Received array with %zu obstacles:", msg->obstacles.size());
+        for (const auto &obstacle : msg->obstacles)
+        {
+            if (obstacle.polygon.points.size() == 1)
+            {
+                RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f, radius: %.2f, type: cylinder", obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius);
+                this->obstacles.push_back({obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius, 0, 0, ObstacleType::CYLINDER});
+            }
+            else
+            {
+                double x = (obstacle.polygon.points[0].x + obstacle.polygon.points[2].x) / 2.0;
+                double y = (obstacle.polygon.points[0].y + obstacle.polygon.points[1].y) / 2.0;
+                double dx = (obstacle.polygon.points[2].x - x) * 2;
+                double dy = (obstacle.polygon.points[2].y - y) * 2;
+                this->obstacles.push_back({x, y, 0, dx, dy, ObstacleType::BOX});
+            }
+        }
+    }
+
    public:
     explicit FollowPathActionClient() : Node("follow_path_action_client") {
 
@@ -282,6 +318,18 @@ class FollowPathActionClient : public rclcpp::Node {
         // Subscribe to the /victims_path_planner topic
         this->plan_subscription_ = this->create_subscription<nav_msgs::msg::Path>("victims_rescue_path",
                  rclcpp::QoS(rclcpp::KeepLast(10)), std::bind(&FollowPathActionClient::plan_callback, this, std::placeholders::_1));
+
+        // Create subscription to /map_borders
+        this->sub_borders_ = this->create_subscription<geometry_msgs::msg::Polygon>(
+            "/map_borders", rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom),
+            std::bind(&FollowPathActionClient::borders_callback, this, std::placeholders::_1));
+        RCLCPP_INFO(get_logger(), "Subscribed to map_borders");
+
+        // Create subscription to /obstacles
+        this->sub_obstacles_ = this->create_subscription<obstacles_msgs::msg::ObstacleArrayMsg>(
+            "/obstacles", rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom),
+            std::bind(&FollowPathActionClient::obstacles_callback, this, std::placeholders::_1));
+        RCLCPP_INFO(get_logger(), "Subscribed to obstacles");
     }
 };
 
