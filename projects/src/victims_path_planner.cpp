@@ -230,12 +230,14 @@ public:
     auto start_time = std::chrono::high_resolution_clock::now();
     RCLCPP_INFO(get_logger(), "Starting mission planning");
 
-    // Brute force
+    // --------- Solving Orienteering Problem -----------
+    // Brute force method
     std::vector<int> node_indices = find_optimal_path(max_distance, distance_matrix, rewards);
 
-    // // Branch and Bound method
-    // ILP_Solver solver = ILP_Solver(rewards, road_map, max_distance);
+    // // ILP method (not used since the solver is not reliable and takes longer time)
+    // ILP_Solver solver = ILP_Solver(rewards, distance_matrix, max_distance);
     // std::vector<int> node_indices = solver.find_optimal_path_BnB();
+    // ---------------------------------------------------
 
     std::stringstream ss;
     ss << "Optimal path: ";
