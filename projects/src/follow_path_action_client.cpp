@@ -161,11 +161,11 @@ class FollowPathActionClient : public rclcpp::Node {
 
     void feedback_callback(const GoalHandleFollowPath::SharedPtr& goal_handle,
                            const std::shared_ptr<const FollowPath::Feedback> feedback) {
-        std::stringstream ss;
-        double distance_to_goal = feedback->distance_to_goal;
-        ss << "Distance to goal: " << distance_to_goal << ", Speed: " << feedback->speed;
-        RCLCPP_INFO(this->get_logger(), "Received feedback");
-        RCLCPP_INFO(this->get_logger(), ss.str().c_str());
+        // std::stringstream ss;
+        // double distance_to_goal = feedback->distance_to_goal;
+        // ss << "Distance to goal: " << distance_to_goal << ", Speed: " << feedback->speed;
+        // RCLCPP_INFO(this->get_logger(), "Received feedback");
+        // RCLCPP_INFO(this->get_logger(), ss.str().c_str());
     }
 
     void result_callback(const GoalHandleFollowPath::WrappedResult& result) {
