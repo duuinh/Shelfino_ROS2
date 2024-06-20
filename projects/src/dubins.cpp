@@ -198,7 +198,7 @@ bool is_solution_valid(PrimitiveResult result, std::vector<double> k, double sca
     // s(i) >= 0
     length_positive = (result.s1 > 0) || (result.s2 > 0) || (result.s3 > 0);
 
-    return (sqrt((eq1*eq1) + (eq2*eq2) + (eq3*eq3)) < 2.e-1) && length_positive;
+    return (sqrt((eq1*eq1) + (eq2*eq2) + (eq3*eq3)) < 1.e-2) && length_positive;
 }
 
 DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const double max_curvature, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles) {
@@ -215,31 +215,29 @@ DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const d
         DubinsWord dubins_word = static_cast<DubinsWord>(i);
         PrimitiveResult result = calculate_primitive_result(dubins_word, scaled_theta_0, scaled_theta_f, scaled_k_max);
         double curve_length = result.s1 + result.s2 + result.s3;
-        if (result.is_valid && curve_length < shortest_length) {
-            shortest_length = curve_length;
-            shortest_dubins = dubins_word;
-        }
-    }
-
-    if (shortest_dubins != DubinsWord::UNDEFINED) {
-        PrimitiveResult result = calculate_primitive_result(shortest_dubins, scaled_theta_0, scaled_theta_f, scaled_k_max);
-        
-        // scale back to original length
-        double s1 = result.s1 * scaling_factor;
-        double s2 = result.s2 * scaling_factor;
-        double s3 = result.s3 * scaling_factor;
-        
-        auto motions = dubins_word_to_motions.find(shortest_dubins)->second;
+        auto motions = dubins_word_to_motions.find(dubins_word)->second;
         std::vector<double> scaled_k = { static_cast<double>(motions[0]) * scaled_k_max, 
                                           static_cast<double>(motions[1]) * scaled_k_max, 
                                           static_cast<double>(motions[2]) * scaled_k_max };
-        
-        bool is_valid = is_solution_valid(result, scaled_k, scaled_theta_0, scaled_theta_f);
-        if (is_valid) {
+
+        if (result.is_valid && curve_length < shortest_length && is_solution_valid(result, scaled_k, scaled_theta_0, scaled_theta_f)) {
+            // scale back to original length
+            double s1 = result.s1 * scaling_factor;
+            double s2 = result.s2 * scaling_factor;
+            double s3 = result.s3 * scaling_factor;
+            
             DubinsArc arc1(start_point, s1, static_cast<double>(motions[0]) * max_curvature);
             DubinsArc arc2(arc1.get_final_point(), s2, static_cast<double>(motions[1]) * max_curvature);
             DubinsArc arc3(arc2.get_final_point(), s3, static_cast<double>(motions[2]) * max_curvature);
-            shortest_curve = DubinsCurve(arc1, arc2, arc3);
+            DubinsCurve curve = DubinsCurve(arc1, arc2, arc3);
+
+            if (check_collision(curve, borders, obstacles)) {
+                continue;
+            } else {
+                shortest_length = curve_length;
+                shortest_dubins = dubins_word;
+                shortest_curve = curve;
+            }
         }
     }
 
@@ -247,57 +245,60 @@ DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const d
 }
 ///////////////
 
-// bool checkDubinsArcIntersection(DubinsArc arc, Segment2D segment) {
-//     // If arc is straight, simply compute a line segment and check for intersection
-//     if (arc.curvature == 0) {
-//         Point2D source(arc.start.x, arc.start.y);
-//         WayPoint arcDest = arc.get_final_point();
-//         Point2D dest(arcDest.x, arcDest.y);
-//         Segment2D arcSegment(source, dest);
-//         return intersect(segment, arcSegment); // Assuming intersect function exists for Segment2D types
-//     } else {
-//         // For a curved arc, build a circle to represent the arc and check intersection
-//         Point2D p1(arc.start.x, arc.start.y);
+bool check_collision(DubinsCurve curve, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles) {
+    // initialize path segment
+    std::vector<h2d::Segment> segments;
+    std::vector<WayPoint> points = curve.get_points(0.1);
 
-//         DubinsArc arcMid(arc.start, arc.length * 0.5, arc.curvature);
-//         WayPoint midPoint = arcMid.get_final_point();
-//         Point2D p2(midPoint.x, midPoint.y);
+    for (size_t i = 1; i < points.size(); i++) {
+        h2d::Segment path_segment = h2d::Segment(h2d::Point2d(points[i - 1].x, points[i - 1].y), h2d::Point2d(points[i].x, points[i].y));
+        segments.push_back(path_segment);
+    }
 
-//         WayPoint endPoint = arc.get_final_point();
-//         Point2D p3(endPoint.x, endPoint.y);
+    h2d::CPolyline map_poly;
+    std::vector<h2d::Point2d> vertexes;
 
-//         // Assuming getCircle function exists to find the circle from 3 points
-//         Circle circle = get_circle(p1, p2, p3);
+    for (GraphNode &border : borders)
+    {
+        vertexes.push_back(h2d::Point2d(border.x, border.y));
+    }
 
-//         // Determine start and end points for intersection check based on arc curvature direction
-//         Point2D arcStart = (arc.curvature < 0) ? p3 : p1;
-//         Point2D arcEnd = (arc.curvature < 0) ? p1 : p3;
+    for (const auto& path_segment : segments) {
+        // check if segment intersects with obstacle
+        for (Obstacle &obstacle : obstacles) {
 
-//         return intersect(circle, segment, arcStart, arcEnd); // Assuming an intersect overload exists for this
-//     }
-// }
+            if (obstacle.type == ObstacleType::CYLINDER)
+            {
+                h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius);
+                if (obs_circle.intersects(path_segment).size() > 0)
+                {
+                    return true;
+                }
+            }
 
-// bool checkIntersection(DubinsCurve curve, Polygon polygon, int pointsCount) {
-//     std::vector<Segment2D> segments;
-//     auto points = curve.toPoints(pointsCount); // Use toPoints method adapted to DubinsCurve
+            else if (obstacle.type == ObstacleType::BOX)
+            {
+                h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
+                    {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
+                    {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
+                    {obstacle.x + obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
+                    {obstacle.x + obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0}});
 
-//     // Link consecutive points with segments
-//     for (size_t i = 1; i < points.size(); i++) {
-//         Point2D start_point(points[i - 1].x, points[i - 1].y);
-//         Point2D endPoint(points[i].x, points[i].y);
-//         segments.emplace_back(start_point, endPoint);
-//     }
+                if (obs_box.intersects(path_segment).size() > 0)
+                {
+                    return true;
+                }
+            }
+        }
 
-//     // Check if any segment of the approximated curve intersects with any polygon side
-//     for (const auto& curveSegment : segments) {
-//         for (const auto& polygonSide : polygon.get_sides()) { // Assuming Polygon::getSides() returns a vector of Segment2D
-//             if (intersect(curveSegment, polygonSide)) { // Assuming an appropriate intersect function for Segment2D types
-//                 return true;
-//             }
-//         }
-//     }
-//     return false;
-// }
+        // check if segment intersects with borders
+        if (map_poly.intersects(path_segment).size() > 0)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 ///////////////
 
@@ -316,7 +317,7 @@ std::vector<DubinsCurve> solve_multipoints_dubins (std::vector<WayPoint> &points
             double opt_theta = numeric_limits<double>::infinity();
             double step_begin = 0;
             double step_end = 2* M_PI;
-            double step = M_PI/8;
+            double step = M_PI/4;
 
             for (double theta = step_begin; theta < step_end; theta+=step) {
                 points[i].orientation = theta;
