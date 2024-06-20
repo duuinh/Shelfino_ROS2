@@ -248,7 +248,7 @@ DubinsCurve find_shortest_curve(WayPoint start_point, WayPoint endPoint, const d
 bool check_collision(DubinsCurve curve, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles) {
     // initialize path segment
     std::vector<h2d::Segment> segments;
-    std::vector<WayPoint> points = curve.get_points(0.1);
+    std::vector<WayPoint> points = curve.get_points(0.2);
 
     for (size_t i = 1; i < points.size(); i++) {
         h2d::Segment path_segment = h2d::Segment(h2d::Point2d(points[i - 1].x, points[i - 1].y), h2d::Point2d(points[i].x, points[i].y));
@@ -279,10 +279,10 @@ bool check_collision(DubinsCurve curve, std::vector<GraphNode> &borders, std::ve
             else if (obstacle.type == ObstacleType::BOX)
             {
                 h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
-                    {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
-                    {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
-                    {obstacle.x + obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
-                    {obstacle.x + obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0}});
+                    {obstacle.x - obstacle.dx / 2.0 - INFLATION_RADIUS, obstacle.y + obstacle.dy / 2.0 + INFLATION_RADIUS},
+                    {obstacle.x - obstacle.dx / 2.0 - INFLATION_RADIUS, obstacle.y - obstacle.dy / 2.0 - INFLATION_RADIUS},
+                    {obstacle.x + obstacle.dx / 2.0 + INFLATION_RADIUS, obstacle.y - obstacle.dy / 2.0 - INFLATION_RADIUS},
+                    {obstacle.x + obstacle.dx / 2.0 + INFLATION_RADIUS, obstacle.y + obstacle.dy / 2.0 + INFLATION_RADIUS}});
 
                 if (obs_box.intersects(path_segment).size() > 0)
                 {

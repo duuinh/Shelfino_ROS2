@@ -8,6 +8,7 @@
 #include <map>
 #include <limits>
 #include "homog2d.hpp"
+#include <common_defines.hpp>
 
 enum DubinsWord {
     LSL,
