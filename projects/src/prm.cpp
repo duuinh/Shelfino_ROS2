@@ -84,11 +84,11 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
     // check for obstacle
     for (Obstacle &obstacle : obstacles_)
     {
-        h2d::Circle robot_circle = h2d::Circle(h2d::Point2d(new_point.x, new_point.y), ROBOT_RADIUS + INFLATION_RADIUS);
+        h2d::Circle robot_circle = h2d::Circle(h2d::Point2d(new_point.x, new_point.y), ROBOT_RADIUS);
 
         if (obstacle.type == ObstacleType::CYLINDER)
         {
-            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius);
+            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius + INFLATION_RADIUS);
             if (robot_circle.isInside(obs_circle) || obs_circle.intersects(robot_circle).size() > 0)
             {
                 return false;
@@ -97,10 +97,10 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
         else if (obstacle.type == ObstacleType::BOX)
         {   
             h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
-                {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
-                {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
-                {obstacle.x + obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
-                {obstacle.x + obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0}});
+                {obstacle.x - obstacle.dx / 2.0 - INFLATION_RADIUS, obstacle.y + obstacle.dy / 2.0 + INFLATION_RADIUS},
+                {obstacle.x - obstacle.dx / 2.0 - INFLATION_RADIUS, obstacle.y - obstacle.dy / 2.0 - INFLATION_RADIUS},
+                {obstacle.x + obstacle.dx / 2.0 + INFLATION_RADIUS, obstacle.y - obstacle.dy / 2.0 - INFLATION_RADIUS},
+                {obstacle.x + obstacle.dx / 2.0 + INFLATION_RADIUS, obstacle.y + obstacle.dy / 2.0 + INFLATION_RADIUS}});
                 
             if (robot_circle.isInside(obs_box) || obs_box.intersects(robot_circle).size() > 0)
             {
@@ -135,10 +135,10 @@ bool PRM::is_obstacle_free(Point &new_point, Point &neighbor)
         else if (obstacle.type == ObstacleType::BOX)
         {   
             h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
-                {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
-                {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
-                {obstacle.x + obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
-                {obstacle.x + obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0}});
+                {obstacle.x - obstacle.dx / 2.0 - INFLATION_RADIUS, obstacle.y + obstacle.dy / 2.0 + INFLATION_RADIUS},
+                {obstacle.x - obstacle.dx / 2.0 - INFLATION_RADIUS, obstacle.y - obstacle.dy / 2.0 - INFLATION_RADIUS},
+                {obstacle.x + obstacle.dx / 2.0 + INFLATION_RADIUS, obstacle.y - obstacle.dy / 2.0 - INFLATION_RADIUS},
+                {obstacle.x + obstacle.dx / 2.0 + INFLATION_RADIUS, obstacle.y + obstacle.dy / 2.0 + INFLATION_RADIUS}});
                 
             if (obs_box.intersects(path_segment).size() > 0)
             {

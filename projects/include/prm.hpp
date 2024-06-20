@@ -32,8 +32,8 @@ public:
 private:
     RoadMap roadmap;
     std::vector<Obstacle> obstacles_;
-    double spacing = 2;
-    int k_neighbors = 5;      // number of neighbor nodes
+    double spacing = 1.5;
+    int k_neighbors = 15;      // number of neighbor nodes
     std::vector<Point> generate_poisson_disk_samples(double x_min, double x_max, double y_min, double y_max, double min_dist, std::vector<GraphNode> victims);
     bool is_in_free_space(Point &new_point, std::vector<GraphNode> borders);
     bool is_obstacle_free(Point &new_point, Point &neighbor);
