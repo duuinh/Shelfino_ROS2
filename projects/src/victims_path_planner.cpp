@@ -304,6 +304,7 @@ public:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
   on_deactivate(const rclcpp_lifecycle::State &state)
   {
+    LifecycleNode::deactivate();
     RCLCPP_INFO(this->get_logger(), "Deactivating VictimsPathPlannerNode");
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
@@ -357,6 +358,7 @@ void VictimsPathPlannerNode::construct_roadmap()
     this->roadmap_ready = true;
     RCLCPP_INFO(this->get_logger(), "Roadmap ready");
     this->activate();
+    this->deactivate();
   }
 }
 
