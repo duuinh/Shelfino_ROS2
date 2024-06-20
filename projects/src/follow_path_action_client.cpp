@@ -246,7 +246,7 @@ class FollowPathActionClient : public rclcpp::Node {
         }
 
         this->marker_publisher_->publish(markers);
-        dubins_curves = solve_multipoints_dubins(points, max_curvature);
+        dubins_curves = solve_multipoints_dubins(points, max_curvature, this->borders, this->obstacles);
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
