@@ -27,7 +27,7 @@ bool is_integer(const double& value) {
 
 double sinc(double x) {
     if (abs(x) < 0.002) {
-        return 1-(x*x)*(1/6-(x*x)/120);
+        return 1-(x*x)/6 *(1-(x*x)/20);
     } 
     return sin(x)/x;
 }
