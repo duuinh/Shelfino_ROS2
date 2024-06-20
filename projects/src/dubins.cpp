@@ -174,10 +174,6 @@ PrimitiveResult calculate_primitive_result(DubinsWord word, double scaled_theta_
 
 bool is_solution_valid(PrimitiveResult result, std::vector<double> k, double scaled_theta_0, double scaled_theta_f)
 {
-    if (!result.is_valid) {
-        return false;
-    }
-
     int x0 = -1, y0 = 0;
     int xf = 1, yf = 0;
 
