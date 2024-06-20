@@ -9,7 +9,7 @@ std::vector<WayPoint> DubinsCurve::get_points(double step) const{
     for (auto& arc : arcs) {
         auto arc_points = arc.get_points(step);
         if (!arc_points.empty()) {
-            points.insert(points.end(), arc_points.begin() + 1, arc_points.end());
+            points.insert(points.end(), arc_points.begin(), arc_points.end());
         }
     }
     return points;
