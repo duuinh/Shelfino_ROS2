@@ -17,7 +17,7 @@ find_package(nav_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-
+find_package(tf2_ros REQUIRED)
 
 install(DIRECTORY
   launch
@@ -74,6 +74,7 @@ foreach(NODE ${NODES})
     "nav2_msgs"
     "std_msgs"
     "visualization_msgs"
+    "tf2_ros"
   )
 
   install(TARGETS ${NODE}

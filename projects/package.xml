@@ -21,6 +21,7 @@
   <!-- <depend>evader</depend> -->
   <depend>map_pkg</depend>
   <depend>visualization_msgs</depend>
+  <depend>tf2_ros</depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -16,6 +16,8 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include <chrono>
+#include "tf2_ros/transform_listener.h"
+#include "tf2_ros/buffer.h"
 
 class VictimsPathPlannerNode : public rclcpp_lifecycle::LifecycleNode
 {
@@ -27,6 +29,8 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr sub_initial_pos_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_publisher_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr marker_publisher_;
+  std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
 
   bool borders_ready = false;
   bool obstacles_ready = false;
@@ -199,6 +203,10 @@ public:
 
     this->marker_publisher_ = this->create_publisher<visualization_msgs::msg::MarkerArray>("/markers/path_points", rclcpp::QoS(rclcpp::KeepLast(1), rmw_qos_profile_custom));
     
+    this->tf_buffer_ =
+            std::make_unique<tf2_ros::Buffer>(this->get_clock());
+    this->tf_listener_ =
+            std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
   }
 
@@ -314,6 +322,11 @@ void VictimsPathPlannerNode::construct_roadmap()
 {
   if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready)
   {
+    if (!this->tf_buffer_->canTransform("shelfino0/base_link", "map", tf2::TimePointZero, 2s))
+    {
+        RCLCPP_ERROR(this->get_logger(), "Timed out: cannot transform map to shelfino0/base_link");
+        return;
+    }
     auto start_time = std::chrono::high_resolution_clock::now();
     RCLCPP_INFO(get_logger(), "Starting roadmap construction");
 
