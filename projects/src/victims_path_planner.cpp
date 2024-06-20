@@ -15,6 +15,8 @@
 #include "prm.hpp"
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
+#include <chrono>
+
 class VictimsPathPlannerNode : public rclcpp_lifecycle::LifecycleNode
 {
 private:
@@ -217,7 +219,7 @@ public:
     }
     rewards.push_back(0); // end node
 
-    auto start_time = get_clock()->now().seconds();
+    auto start_time = std::chrono::high_resolution_clock::now();
     RCLCPP_INFO(get_logger(), "Starting mission planning");
 
     // Brute force
@@ -235,7 +237,9 @@ public:
     }
     RCLCPP_INFO(get_logger(), ss.str().c_str());
 
-    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %f sec]", get_clock()->now().seconds() - start_time);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    RCLCPP_INFO(get_logger(), "Finished mission planning [time: %ld microseconds]", duration.count());
 
     // get actual path from roadmap
     std::vector<GraphNode> path;
@@ -309,7 +313,7 @@ void VictimsPathPlannerNode::construct_roadmap()
 {
   if (this->borders_ready && this->gate_ready && this->victims_ready && this->obstacles_ready && this->initial_pose_ready)
   {
-    auto start_time = get_clock()->now().seconds();
+    auto start_time = std::chrono::high_resolution_clock::now();
     RCLCPP_INFO(get_logger(), "Starting roadmap construction");
 
     std::vector<GraphNode> nodes = this->victims;
@@ -335,7 +339,9 @@ void VictimsPathPlannerNode::construct_roadmap()
       }
     }
 
-    RCLCPP_INFO(get_logger(), "Finished roadmap construction [time: %f sec]", get_clock()->now().seconds() - start_time);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    RCLCPP_INFO(get_logger(), "Finished roadmap construction [time: %ld microseconds]", duration.count());
 
     // print log
     for (size_t i = 0; i < nodes.size(); ++i)

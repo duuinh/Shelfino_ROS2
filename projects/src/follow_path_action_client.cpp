@@ -9,6 +9,7 @@
 #include "visualization_msgs/msg/marker.hpp"
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "obstacles_msgs/msg/obstacle_array_msg.hpp"
+#include <chrono>
 
 using namespace std::chrono_literals;
 using FollowPath = nav2_msgs::action::FollowPath;
@@ -213,7 +214,7 @@ class FollowPathActionClient : public rclcpp::Node {
         std::vector<WayPoint> points;
         visualization_msgs::msg::MarkerArray markers;
 
-        auto start_time = get_clock()->now().seconds();
+        auto start_time = std::chrono::high_resolution_clock::now();
         RCLCPP_INFO(get_logger(), "Starting Dubins motion planning");
         RCLCPP_INFO(get_logger(), std::to_string(path_msg->poses.size()).c_str());
 
@@ -247,7 +248,9 @@ class FollowPathActionClient : public rclcpp::Node {
         this->marker_publisher_->publish(markers);
         dubins_curves = solve_multipoints_dubins(points, max_curvature);
 
-        RCLCPP_INFO(get_logger(), "Finished Dubins motion planning [time: %f sec]", get_clock()->now().seconds() - start_time);
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+        RCLCPP_INFO(get_logger(), "Finished Dubins motion planning [time: %ld microseconds]", duration.count());
 
         visualize_path(dubins_curves);
 
