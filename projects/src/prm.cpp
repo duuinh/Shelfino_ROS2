@@ -28,24 +28,20 @@ PRM::PRM(std::vector<Obstacle> obstacles, std::vector<GraphNode> borders, std::v
         }
     }
 
-    if (obstacles.size() > 0)
-    {
-        // sample nodes
-        while (roadmap.nodes.size() < n_samples)
-        {
-            Point new_point = generate_new_point(x_min, x_max, y_min, y_max);
-            if (is_in_free_space(new_point, borders))
-            {
-                roadmap.nodes.push_back(new_point);
-            }
-        }
-    } 
-
     for (GraphNode &victim : victims)
     {
         roadmap.nodes.push_back({victim.x, victim.y});
     }
 
+    // sample nodes
+    std::vector<Point> random_points = generate_poisson_disk_samples(x_min, x_max, y_min, y_max, spacing, victims);
+    for (Point &new_point : random_points) {
+        if (is_in_free_space(new_point, borders))
+        {
+            roadmap.nodes.push_back(new_point);
+        }
+    }
+    
     // construct a roadmap by finding k nearest neighbors for each node
 
     roadmap.graph.resize(roadmap.nodes.size());
@@ -88,11 +84,11 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
     // check for obstacle
     for (Obstacle &obstacle : obstacles_)
     {
-        h2d::Circle robot_circle = h2d::Circle(h2d::Point2d(new_point.x, new_point.y), ROBOT_RADIUS);
+        h2d::Circle robot_circle = h2d::Circle(h2d::Point2d(new_point.x, new_point.y), ROBOT_RADIUS + INFLATION_RADIUS);
 
         if (obstacle.type == ObstacleType::CYLINDER)
         {
-            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius + INFLATION_RADIUS);
+            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius);
             if (robot_circle.isInside(obs_circle) || obs_circle.intersects(robot_circle).size() > 0)
             {
                 return false;
@@ -100,10 +96,6 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
         }
         else if (obstacle.type == ObstacleType::BOX)
         {   
-            
-            obstacle.dx += INFLATION_RADIUS*2;
-            obstacle.dy += INFLATION_RADIUS*2;
-
             h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
                 {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
                 {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
@@ -127,33 +119,28 @@ bool PRM::is_in_free_space(Point &new_point, std::vector<GraphNode> borders)
 
 bool PRM::is_obstacle_free(Point &new_point, Point &neighbor)
 {
+    // check for obstacle
     for (Obstacle &obstacle : obstacles_)
     {
-        double x1 = new_point.x, y1 = new_point.y;
-        double x2 = neighbor.x, y2 = neighbor.y;
-        double ox = obstacle.x, oy = obstacle.y;
+        h2d::Segment path_segment = h2d::Segment(h2d::Point2d(new_point.x, new_point.y), h2d::Point2d(neighbor.x, neighbor.y));
 
-        double m = (y2 - y1) / (x2 - x1);
-        double b = y1 - m * x1;
-
-        // check distance from obstacle (point) to the line
-        double obs_radius = 0;
         if (obstacle.type == ObstacleType::CYLINDER)
         {
-            obs_radius = obstacle.radius;
+            h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius + INFLATION_RADIUS);
+            if (obs_circle.intersects(path_segment).size() > 0)
+            {
+                return false;
+            }
         }
         else if (obstacle.type == ObstacleType::BOX)
-        {
-            obs_radius = std::max(obstacle.dx, obstacle.dy); // simply choose the max value
-        }
-
-        // check if obstacle is within bounding box of the line segment
-        if (ox >= std::min(new_point.x, neighbor.x) && ox <= std::max(new_point.x, neighbor.x) &&
-            oy >= std::min(new_point.y, neighbor.y) && oy <= std::max(new_point.y, neighbor.y))
-        {
-            // check distance from obstacle (point) to the line
-            if (ox >= std::min(new_point.x, neighbor.x) && ox <= std::max(new_point.x, neighbor.x) &&
-                std::abs(m * ox - oy + b) / std::sqrt(m * m + 1) < obs_radius + ROBOT_RADIUS + INFLATION_RADIUS)
+        {   
+            h2d::CPolyline obs_box = h2d::CPolyline(std::vector<h2d::Point2d>{
+                {obstacle.x - obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0},
+                {obstacle.x - obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
+                {obstacle.x + obstacle.dx / 2.0, obstacle.y - obstacle.dy / 2.0},
+                {obstacle.x + obstacle.dx / 2.0, obstacle.y + obstacle.dy / 2.0}});
+                
+            if (obs_box.intersects(path_segment).size() > 0)
             {
                 return false;
             }
@@ -185,14 +172,92 @@ bool PRM::is_inside_map(Point point, double radius, std::vector<GraphNode> borde
     return inside;
 }
 
-Point PRM::generate_new_point(double x_min, double x_max, double y_min, double y_max)
-{
-    static std::random_device rd;
-    static std::mt19937 engine(rd());
-    std::uniform_real_distribution<> randomX(x_min, x_max);
-    std::uniform_real_distribution<> randomY(y_min, y_max);
+std::vector<Point> PRM::generate_poisson_disk_samples(double x_min, double x_max, double y_min, double y_max, double min_dist, std::vector<GraphNode> victims) {
+    const double cell_size = min_dist / sqrt(2.0);
+    int grid_width = static_cast<int>(ceil((x_max - x_min) / cell_size));
+    int grid_height = static_cast<int>(ceil((y_max - y_min) / cell_size));
 
-    return {randomX(engine), round(randomY(engine))};
+    // grid to keep track of points
+    std::vector<std::vector<Point>> grid(grid_width * grid_height);
+
+    std::queue<Point> active_points;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<double> uniform_dist(0.0, 1.0);
+
+    // func. to check if a point is within bounds and minimum distance constraints
+    auto isPointValid = [&](const Point& pt) {
+        if (pt.x < x_min || pt.x >= x_max || pt.y < y_min || pt.y >= y_max)
+            return false;
+
+        int cell_x = static_cast<int>((pt.x - x_min) / cell_size);
+        int cell_y = static_cast<int>((pt.y - y_min) / cell_size);
+
+        int search_start_x = std::max(0, cell_x - 2);
+        int search_end_x = std::min(grid_width - 1, cell_x + 2);
+        int search_start_y = std::max(0, cell_y - 2);
+        int search_end_y = std::min(grid_height - 1, cell_y + 2);
+
+        for (int gx = search_start_x; gx <= search_end_x; ++gx) {
+            for (int gy = search_start_y; gy <= search_end_y; ++gy) {
+                const auto& cell = grid[gx + gy * grid_width];
+                for (const auto& neighbor : cell) {
+                    double dist_sq = (pt.x - neighbor.x) * (pt.x - neighbor.x) + (pt.y - neighbor.y) * (pt.y - neighbor.y);
+                    if (dist_sq < min_dist * min_dist) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // check distance constraints with victime nodes
+        for (GraphNode &victim : victims) {
+            double dist_sq = (pt.x - victim.x) * (pt.x - victim.x) + (pt.y - victim.y) * (pt.y - victim.y);
+            if (dist_sq < min_dist * min_dist) {
+                return false;
+            }
+        }
+
+        return true;
+    };
+
+    // gen first point
+    Point first_point;
+    first_point.x = uniform_dist(gen) * (x_max - x_min) + x_min;
+    first_point.y = uniform_dist(gen) * (y_max - y_min) + y_min;
+
+    active_points.push(first_point);
+    grid[static_cast<int>((first_point.x - x_min) / cell_size) + static_cast<int>((first_point.y - y_min) / cell_size) * grid_width].push_back(first_point);
+
+    std::vector<Point> points;
+    points.push_back(first_point);
+
+    // gen other points
+    while (!active_points.empty()) {
+        Point pt = active_points.front();
+        active_points.pop();
+
+        for (int i = 0; i < 30; ++i) { // try up to 30 times
+            double angle = 2 * M_PI * uniform_dist(gen);
+            double radius = min_dist + uniform_dist(gen) * min_dist;
+
+            Point new_pt;
+            new_pt.x = pt.x + radius * cos(angle);
+            new_pt.y = pt.y + radius * sin(angle);
+
+            if (isPointValid(new_pt)) {
+                active_points.push(new_pt);
+                points.push_back(new_pt);
+
+                int cell_x = static_cast<int>((new_pt.x - x_min) / cell_size);
+                int cell_y = static_cast<int>((new_pt.y - y_min) / cell_size);
+                grid[cell_x + cell_y * grid_width].push_back(new_pt);
+            }
+        }
+    }
+
+    return points;
 }
 
 int PRM::get_node_index(Point point)
@@ -205,15 +270,6 @@ int PRM::get_node_index(Point point)
             index = i;
             break;
         }
-    }
-
-    if (index == -1)
-    {
-        roadmap.nodes.push_back(point);
-        roadmap.graph.resize(roadmap.nodes.size());
-
-        index = roadmap.nodes.size() - 1;
-        connect_to_neighbors(index);
     }
     return index;
 }

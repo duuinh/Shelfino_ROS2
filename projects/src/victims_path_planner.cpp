@@ -46,7 +46,7 @@ private:
 
   void borders_callback(const geometry_msgs::msg::Polygon::SharedPtr msg)
   {
-    RCLCPP_INFO(get_logger(), "Received borders with %zu points:", msg->points.size());
+    RCLCPP_INFO(get_logger(), "Received borders with %lu points:", msg->points.size());
     for (const auto &point : msg->points)
     {
       RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f", point.x, point.y);
@@ -58,7 +58,7 @@ private:
 
   void obstacles_callback(const obstacles_msgs::msg::ObstacleArrayMsg::SharedPtr msg)
   {
-    RCLCPP_INFO(get_logger(), "Received array with %zu obstacles:", msg->obstacles.size());
+    RCLCPP_INFO(get_logger(), "Received array with %lu obstacles:", msg->obstacles.size());
     for (const auto &obstacle : msg->obstacles)
     {
       if (obstacle.polygon.points.size() == 1)
@@ -81,7 +81,7 @@ private:
 
   void victims_callback(const obstacles_msgs::msg::ObstacleArrayMsg::SharedPtr msg)
   {
-    RCLCPP_INFO(get_logger(), "Received array with %zu victims:", msg->obstacles.size());
+    RCLCPP_INFO(get_logger(), "Received array with %lu victims:", msg->obstacles.size());
     for (const auto &obstacle : msg->obstacles)
     {
       RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f, weight: %.2f", obstacle.polygon.points[0].x, obstacle.polygon.points[0].y, obstacle.radius);
@@ -93,7 +93,7 @@ private:
 
   void gate_callback(const geometry_msgs::msg::PoseArray::SharedPtr msg)
   {
-    RCLCPP_INFO(get_logger(), "Received gate ( %zu poses):", msg->poses.size());
+    RCLCPP_INFO(get_logger(), "Received gate ( %lu poses):", msg->poses.size());
     for (const auto &pose : msg->poses)
     {
       RCLCPP_INFO(get_logger(), "  x: %.2f, y: %.2f", pose.position.x, pose.position.y);
@@ -121,6 +121,7 @@ private:
   }
 
   void visualize_roadmap_nodes(std::vector<Point> nodes) {
+        RCLCPP_INFO(get_logger(), "Total nodes in roadmap: %lu", nodes.size());
         std_msgs::msg::Header header;
         header.stamp = this->get_clock()->now();
         header.frame_id = "map";
@@ -228,7 +229,7 @@ public:
 
     std::stringstream ss;
     ss << "Optimal path: ";
-    for (int i = 0; i < node_indices.size(); ++i)
+    for (size_t i = 0; i < node_indices.size(); ++i)
     {
       ss << node_indices[i] << ", ";
     }
@@ -238,13 +239,13 @@ public:
 
     // get actual path from roadmap
     std::vector<GraphNode> path;
-    for (int i = 0; i < node_indices.size() - 1; ++i)
+    for (size_t i = 0; i < node_indices.size() - 1; ++i)
     {
       std::vector<GraphNode> edge = road_map[node_indices.at(i)][node_indices.at(i + 1)];
       if (!edge.empty()) {
         path.insert(path.end(), edge.begin(), edge.end() - 1);
       } else {
-           RCLCPP_ERROR(get_logger(), "Edge from %zu to %zu is empty", node_indices.at(i), node_indices.at(i + 1));
+           RCLCPP_ERROR(get_logger(), "Edge from %u to %u is empty", node_indices.at(i), node_indices.at(i + 1));
       }
     }
 
@@ -253,7 +254,7 @@ public:
     path_msg.header.stamp = now();
     path_msg.header.frame_id = "map";
 
-    for (int i = 0; i < path.size() + 1; ++i)
+    for (size_t i = 0; i < path.size() + 1; ++i)
     {
       geometry_msgs::msg::PoseStamped pose_stamped;
       pose_stamped.header.stamp = now();
@@ -317,7 +318,7 @@ void VictimsPathPlannerNode::construct_roadmap()
 
     distance_matrix.resize(nodes.size(), std::vector<double>(nodes.size(), 0));
     road_map.resize(nodes.size(), std::vector<std::vector<GraphNode>>(nodes.size()));
-    PRM prm = PRM(obstacles, borders, victims);
+    PRM prm = PRM(obstacles, borders, nodes);
     visualize_roadmap_nodes(prm.get_roadmap().nodes);
 
     for (size_t i = 0; i < nodes.size(); ++i)
