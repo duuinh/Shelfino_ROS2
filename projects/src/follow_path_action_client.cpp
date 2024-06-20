@@ -52,7 +52,7 @@ nav_msgs::msg::Path generate_path(std::vector<DubinsCurve> curves, std_msgs::msg
     pose.header.frame_id = "map";
 
     for (auto curve : curves) {
-        auto points = curve.get_points();
+        auto points = curve.get_points(0.1);
         for (auto point : points) {
             pose.pose.position.x = point.x;
             pose.pose.position.y = point.y;

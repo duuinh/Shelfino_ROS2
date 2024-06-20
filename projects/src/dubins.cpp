@@ -1,13 +1,13 @@
 #include "dubins.hpp"
 using namespace std;
 
-std::vector<WayPoint> DubinsCurve::get_points() const{
+std::vector<WayPoint> DubinsCurve::get_points(double step) const{
     std::vector<WayPoint> points;
     if (arcs.empty()) {
         return points;
     }
     for (auto& arc : arcs) {
-        auto arc_points = arc.get_points();
+        auto arc_points = arc.get_points(step);
         if (!arc_points.empty()) {
             points.insert(points.end(), arc_points.begin() + 1, arc_points.end());
         }
@@ -15,9 +15,8 @@ std::vector<WayPoint> DubinsCurve::get_points() const{
     return points;
 }
 
-std::vector<WayPoint> DubinsArc::get_points() const{
+std::vector<WayPoint> DubinsArc::get_points(double step) const{
     std::vector<WayPoint> points;
-    double step = 0.1;
     for (double l = 0.0; l < this->length; l+=step) {
         DubinsArc segment(this->start, l, this->curvature);
         WayPoint point = segment.get_final_point();

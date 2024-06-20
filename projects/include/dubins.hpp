@@ -67,7 +67,7 @@ public:
         return WayPoint(x, y, orientation);
     }
     
-    std::vector<WayPoint> get_points() const;
+    std::vector<WayPoint> get_points(double step) const;
 };
 
 class DubinsCurve {
@@ -85,7 +85,7 @@ public:
         return length;
     }
 
-    std::vector<WayPoint> get_points() const;
+    std::vector<WayPoint> get_points(double step) const;
 };
 
 bool check_collision(DubinsCurve curve, std::vector<GraphNode> &borders, std::vector<Obstacle> &obstacles);
