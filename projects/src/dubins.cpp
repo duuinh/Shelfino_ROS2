@@ -265,7 +265,7 @@ bool check_collision(DubinsCurve curve, std::vector<GraphNode> &borders, std::ve
 
             if (obstacle.type == ObstacleType::CYLINDER)
             {
-                h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius);
+                h2d::Circle obs_circle = h2d::Circle(h2d::Point2d(obstacle.x, obstacle.y), obstacle.radius + INFLATION_RADIUS);
                 if (obs_circle.intersects(path_segment).size() > 0)
                 {
                     return true;
